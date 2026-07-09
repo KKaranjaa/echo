@@ -21,3 +21,5 @@ env/
 celerybeat-schedule
 celerybeat.pid
 media/
+*.mp3
+*.mp4
