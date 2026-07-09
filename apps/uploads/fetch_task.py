@@ -110,10 +110,12 @@ def _run_fetch(session, url):
             'quiet': True,
             'no_warnings': True,
             'color': 'no_color',
-            'socket_timeout': 120,       # seconds before connection attempt times out
+            'socket_timeout': 120,
             'extractor_args': {
                 'youtube': {
-                    'player_client': ['android', 'web']
+                    # tv_embedded and ios clients bypass YouTube bot-detection
+                    # without needing browser cookies
+                    'player_client': ['tv_embedded', 'ios', 'android', 'web']
                 }
             },
         }
@@ -239,14 +241,16 @@ def _download_yt_dlp(url, tmp_dir, upload_dir, session):
         'quiet': True,
         'no_warnings': True,
         'color': 'no_color',
-        'socket_timeout': 120,           # seconds before a connection attempt times out
-        'retries': 10,                   # retry the full download up to 10 times
-        'fragment_retries': 10,          # retry individual timed-out chunks up to 10 times
-        'buffersize': 1024 * 256,        # 256 KB read buffer (helps on slow connections)
-        'http_chunk_size': 1024 * 1024,  # request 1 MB chunks at a time
+        'socket_timeout': 120,
+        'retries': 10,
+        'fragment_retries': 10,
+        'buffersize': 1024 * 256,
+        'http_chunk_size': 1024 * 1024,
         'extractor_args': {
             'youtube': {
-                'player_client': ['android', 'web']
+                # tv_embedded and ios clients bypass YouTube bot-detection
+                # without needing browser cookies
+                'player_client': ['tv_embedded', 'ios', 'android', 'web']
             }
         },
     }
@@ -256,8 +260,19 @@ def _download_yt_dlp(url, tmp_dir, upload_dir, session):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
     except yt_dlp.utils.DownloadError as e:
-        logger.error("yt-dlp DownloadError (download stage): %s", str(e), exc_info=True)
-        _set_failed(session, "Media download failed.")
+        err_str = str(e).lower()
+        if 'sign in' in err_str or 'bot' in err_str or 'confirm' in err_str:
+            logger.warning("yt-dlp bot detection triggered for %s", url)
+            _set_failed(session, "YouTube is blocking this download. Please try uploading the file directly instead.")
+        elif 'private' in err_str or 'login' in err_str:
+            _set_failed(session, "This video is private or requires sign-in. Please use a publicly accessible link.")
+        elif 'unavailable' in err_str or 'removed' in err_str:
+            _set_failed(session, "This video has been removed or is no longer available.")
+        elif 'timed out' in err_str or 'timeout' in err_str:
+            _set_failed(session, "The download timed out due to a slow connection. Please try again or upload the file directly.")
+        else:
+            logger.error("yt-dlp DownloadError (download stage): %s", str(e), exc_info=True)
+            _set_failed(session, "Media download failed. Please try again or upload the file directly.")
         return ext
 
     # Find the output file and determine its actual extension
