@@ -234,14 +234,14 @@ def _download_yt_dlp(url, tmp_dir, upload_dir, session):
     tmp_output_template = os.path.join(tmp_dir, 'media.%(ext)s')
 
     ydl_opts = {
-        'format': 'best',
+        'format': 'bestaudio/best',      # prefer audio-only — much smaller than video+audio
         'outtmpl': tmp_output_template,
         'quiet': True,
         'no_warnings': True,
         'color': 'no_color',
         'socket_timeout': 120,           # seconds before a connection attempt times out
-        'retries': 10,                   # retry failed fragments up to 10 times
-        'fragment_retries': 10,          # retry individual fragments up to 10 times
+        'retries': 10,                   # retry the full download up to 10 times
+        'fragment_retries': 10,          # retry individual timed-out chunks up to 10 times
         'buffersize': 1024 * 256,        # 256 KB read buffer (helps on slow connections)
         'http_chunk_size': 1024 * 1024,  # request 1 MB chunks at a time
         'extractor_args': {
