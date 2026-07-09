@@ -17,9 +17,8 @@ imageio-ffmpeg
 dj-database-url
 django-redis
 rapidfuzz>=3.9
-torch
-torchaudio
 ffmpeg-python>=0.2
 Pillow==10.4.0
 django-allauth[socialaccount]==65.18.0
 yt-dlp
+whitenoise>=6.0
