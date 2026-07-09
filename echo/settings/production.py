@@ -41,11 +41,6 @@ CACHES = {
 CELERY_BROKER_URL = REDIS_URL
 CELERY_RESULT_BACKEND = REDIS_URL
 
-# Run tasks synchronously in the web process (no separate worker needed on free tier)
-CELERY_TASK_ALWAYS_EAGER = True
-CELERY_TASK_EAGER_PROPAGATES = True
-
-
 from celery.schedules import crontab
 CELERY_BEAT_SCHEDULE = {
     'cleanup-expired-sessions': {
