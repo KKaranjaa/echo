@@ -12,7 +12,7 @@ User = get_user_model()
 @require_POST
 def request_magic_link(request):
     """
-    Handles the "Send Magic Link" form submission.
+    Handles the "Send Verification Link" form submission.
     Creates a user if they don't exist, and sends an allauth email confirmation.
     """
     email = request.POST.get('login', '').strip().lower()
@@ -30,10 +30,10 @@ def request_magic_link(request):
         defaults={'primary': True, 'verified': False}
     )
 
-    # Send the allauth confirmation email (which acts as our magic link)
+    # Send the allauth confirmation email (which acts as our verification link)
     email_address.send_confirmation(request, signup=created)
 
-    messages.success(request, f"A magic link has been sent to {email}. Check your inbox!")
+    messages.success(request, f"A verification link has been sent to {email}. Check your inbox!")
     return redirect('account_login')
 
 from django.shortcuts import render
@@ -44,7 +44,7 @@ from allauth.account import app_settings
 def get_hmac_confirmation(key):
     """
     Decodes the HMAC key bypassing allauth's `verified=False` check.
-    This allows Magic Links to work for returning users who are already verified!
+    This allows verification links to work for returning users who are already verified!
     """
     try:
         max_age = 60 * 60 * 24 * app_settings.EMAIL_CONFIRMATION_EXPIRE_DAYS
@@ -58,7 +58,7 @@ def custom_confirm_email(request, key):
     """
     Replaces allauth's ConfirmEmailView.
     Renders our styled template on GET.
-    On POST, confirms the email and GUARANTEES the user is logged in (Magic Link behavior).
+    On POST, confirms the email and GUARANTEES the user is logged in (Verification Link behavior).
     """
     # Try our custom HMAC decode first (works for returning users)
     confirmation = get_hmac_confirmation(key)
@@ -72,17 +72,17 @@ def custom_confirm_email(request, key):
 
     if request.method == "POST":
         if not confirmation:
-            messages.error(request, "This magic link has expired or is invalid.")
+            messages.error(request, "This verification link has expired or is invalid.")
             return redirect('account_login')
         
         # Confirm the email
         confirmation.confirm(request)
         
-        # MAGIC LINK: Guarantee the user is logged in
+        # VERIFICATION LINK: Guarantee the user is logged in
         # specify the allauth backend to avoid multiple backends error
         login(request, confirmation.email_address.user, backend='allauth.account.auth_backends.AuthenticationBackend')
         
-        messages.success(request, "Successfully logged in via magic link!")
+        messages.success(request, "Successfully logged in via verification link!")
         return redirect('dashboard:index')
 
     # GET request: render the styled confirmation page
@@ -94,7 +94,7 @@ def custom_confirm_email(request, key):
 def confirm_email_manual(request):
     """
     Accepts a verification token/key pasted manually by the user
-    (for PWA / mobile users who can't click the magic link).
+    (for PWA / mobile users who can't click the verification link).
     Delegates to allauth's own confirmation logic so we stay consistent.
     """
     key = request.POST.get('key', '').strip()

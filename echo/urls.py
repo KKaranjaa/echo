@@ -19,7 +19,7 @@ urlpatterns = [
     # ✨ Accounts (Allauth Default) ✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨✨
     path("accounts/", include("allauth.urls")),
 
-    # ✨ Manual email token confirmation (PWA / mobile) & Request Magic Link ✨
+    # ✨ Manual email token confirmation (PWA / mobile) & Request Verification Link ✨
     path("accounts/request-magic-link/", request_magic_link, name="request_magic_link"),
     path("accounts/confirm-email-manual/", confirm_email_manual, name="confirm_email_manual"),
 
