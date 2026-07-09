@@ -3,7 +3,7 @@ import re
 import subprocess
 import ffmpeg
 import imageio_ffmpeg
-import torch
+#import torch
 
 ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
 
@@ -18,19 +18,8 @@ def extract_audio(input_path: str, output_path: str):
     )
 
 def apply_vad(audio_path: str):
-    """Silero VAD to remove silence segments"""
-    model, utils = torch.hub.load(repo_or_dir='snakers4/silero-vad',
-                                  model='silero_vad',
-                                  force_reload=False,
-                                  trust_repo=True)
-    
-    (get_speech_timestamps, save_audio, read_audio, VADIterator, collect_chunks) = utils
-    
-    wav = read_audio(audio_path, sampling_rate=16000)
-    speech_timestamps = get_speech_timestamps(wav, model, sampling_rate=16000)
-    
-    if speech_timestamps:
-        save_audio(audio_path, collect_chunks(speech_timestamps, wav), sampling_rate=16000)
+    """VAD disabled in production — torch not available.
+    Returns original audio path unchanged."""
     return audio_path
 
 def get_duration(audio_path: str) -> float:
