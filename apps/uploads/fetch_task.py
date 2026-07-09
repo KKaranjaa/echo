@@ -110,6 +110,7 @@ def _run_fetch(session, url):
             'quiet': True,
             'no_warnings': True,
             'color': 'no_color',
+            'socket_timeout': 120,       # seconds before connection attempt times out
             'extractor_args': {
                 'youtube': {
                     'player_client': ['android', 'web']
@@ -202,7 +203,7 @@ def _download_direct(url, tmp_dir, upload_dir, session):
     ext = os.path.splitext(urlparse(url).path)[1].lower() or '.mp3'
     tmp_file = os.path.join(tmp_dir, f'download{ext}')
     try:
-        with requests.get(url, stream=True, timeout=60) as r:
+        with requests.get(url, stream=True, timeout=(30, 300)) as r:
             r.raise_for_status()
             written = 0
             with open(tmp_file, 'wb') as f:
@@ -238,6 +239,11 @@ def _download_yt_dlp(url, tmp_dir, upload_dir, session):
         'quiet': True,
         'no_warnings': True,
         'color': 'no_color',
+        'socket_timeout': 120,           # seconds before a connection attempt times out
+        'retries': 10,                   # retry failed fragments up to 10 times
+        'fragment_retries': 10,          # retry individual fragments up to 10 times
+        'buffersize': 1024 * 256,        # 256 KB read buffer (helps on slow connections)
+        'http_chunk_size': 1024 * 1024,  # request 1 MB chunks at a time
         'extractor_args': {
             'youtube': {
                 'player_client': ['android', 'web']
