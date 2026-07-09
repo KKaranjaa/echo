@@ -1,0 +1,91 @@
+<div class="max-w-3xl mx-auto space-y-8 pb-12">
+  
+  <!-- Summary Paragraph -->
+  <div class="echo-glass p-6">
+
+    <h3 class="text-sm font-bold uppercase tracking-widest mb-3" style="color: var(--echo-muted);">Executive Summary</h3>
+    <p class="text-base leading-relaxed font-medium" style="color: var(--echo-deep);">
+      {{ session.summary.summary_paragraph|default:"No summary generated." }}
+    </p>
+  </div>
+
+  <!-- Key Points -->
+  <div>
+    <h3 class="text-sm font-bold uppercase tracking-widest mb-4" style="color: var(--echo-muted);">Key Points</h3>
+    <ul class="space-y-3">
+      {% for point in session.summary.key_points %}
+      <li class="echo-card p-4 flex items-start gap-4" style="border-left-width: 4px; border-left-color: var(--echo-accent);">
+        <span class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-xs font-bold" style="background-color: var(--echo-accent-soft); color: var(--echo-accent);">{{ forloop.counter }}</span>
+        <p class="text-sm font-medium leading-relaxed pt-0.5" style="color: var(--echo-deep);">{{ point }}</p>
+      </li>
+      {% empty %}
+      <div class="echo-card w-full p-8 flex flex-col items-center justify-center text-center max-w-xl mx-auto">
+        <div class="w-12 h-12 mb-3 flex items-center justify-center rounded-full bg-indigo-50 text-indigo-500">
+           <span class="text-2xl">📝</span>
+        </div>
+        <p class="text-sm font-bold" style="color: var(--echo-deep);">No key points extracted</p>
+        <p class="text-xs font-medium mb-3" style="color: var(--echo-subtext);">
+          We couldn't extract key bullet points from this lecture. This can happen if the transcript is very short or the audio is mostly quiet.
+        </p>
+        <div class="p-3.5 rounded-lg border border-[color:var(--echo-border)] bg-indigo-50/30 text-left w-full">
+          <h4 class="text-xs font-bold uppercase tracking-wider mb-1 text-indigo-800">What to do next:</h4>
+          <p class="text-xs font-semibold text-indigo-950">
+            Check the <strong>Transcript</strong> tab to see if speech was captured, or try asking ECHO to summarize specific parts in the <strong>Ask ECHO</strong> chat.
+          </p>
+        </div>
+      </div>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <!-- Exam Flags -->
+  <div>
+    <h3 class="text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-2" style="color: var(--echo-amber);">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+      Exam Flags
+    </h3>
+    
+    <div class="flex flex-wrap gap-3">
+      {% for flag in session.summary.exam_flags %}
+      <div class="relative group cursor-help">
+        <div class="px-4 py-2 rounded-full text-sm font-bold shadow-sm animate-glow-pulse border" 
+             style="background-color: #FEF3C7; color: #B45309; border-color: #FDE68A;">
+          {{ flag.phrase }}
+        </div>
+        <!-- Tooltip -->
+        <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10" style="background-color: var(--echo-deep); color: white;">
+          <p class="text-xs font-medium mb-1 opacity-80">{{ flag.context }}</p>
+          <p class="text-xs font-bold">{{ flag.reason }}</p>
+          <div class="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent" style="border-top-color: var(--echo-deep);"></div>
+        </div>
+      </div>
+      {% empty %}
+      <div class="echo-card w-full p-8 flex flex-col items-center justify-center text-center max-w-xl mx-auto">
+        <div class="w-12 h-12 mb-3 flex items-center justify-center rounded-full bg-amber-50 text-amber-600">
+           <span class="text-2xl">✨</span>
+        </div>
+        <p class="text-sm font-bold" style="color: var(--echo-deep);">No exam flags detected</p>
+        <p class="text-xs font-medium mb-3" style="color: var(--echo-subtext);">
+          ECHO didn't find any explicit verbal hints, syllabus references, or direct cues matching exam or grading criteria in this recording.
+        </p>
+        <div class="p-3.5 rounded-lg border border-[color:var(--echo-border)] bg-amber-50/30 text-left w-full">
+          <h4 class="text-xs font-bold uppercase tracking-wider mb-1 text-amber-800">What to do next:</h4>
+          <p class="text-xs font-semibold text-amber-950">
+            Study the full key points above, or go to the <strong>Ask ECHO</strong> tab and ask: <em>"What are the most testable concepts or likely exam questions from this content?"</em>
+          </p>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <style>
+    @keyframes glowPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+      50% { box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.3); }
+    }
+    .animate-glow-pulse {
+      animation: glowPulse 2s ease-in-out 2;
+    }
+  </style>
+</div>

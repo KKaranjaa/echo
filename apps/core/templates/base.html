@@ -1,0 +1,623 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" x-data="{ toasts: [], theme: localStorage.getItem('theme') || 'light' }" :class="theme">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1E1B4B" />
+  <meta name="description"
+    content="{% block meta_description %}ECHO — AI-powered audio transcription and summarisation.{% endblock %}" />
+
+  <link rel="icon" href="/favicon.ico" type="image/svg+xml" />
+  <link rel="icon" href="/favicon-32x32.png" type="image/png" />
+  <link rel="manifest" href="/manifest.json" />
+
+  <title>{% block title %}ECHO{% endblock %}</title>
+
+  <!-- ────────────────────────────────────────────────────────────────
+       Google Fonts: Inter (100–900) + JetBrains Mono
+  ─────────────────────────────────────────────────────────────────── -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap"
+    rel="stylesheet" />
+
+  <!-- ECHO design tokens + animation keyframes -->
+  <link rel="stylesheet" href="{% static 'core/css/echo.css' %}" />
+
+  <!-- ────────────────────────────────────────────────────────────────
+       Tailwind CSS (Local)
+  ─────────────────────────────────────────────────────────────────── -->
+  <script src="{% static 'core/js/tailwind.min.js' %}"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+          },
+          colors: {
+            echo: {
+              deep: '#1E1B4B',
+              accent: '#C084FC',
+              accentSoft: '#EDE9FE',
+              surface: '#F5F3FF',
+              card: '#FFFFFF',
+              amber: '#F59E0B',
+              success: '#10B981',
+              error: '#EF4444',
+              muted: '#6B7280',
+              border: '#DDD6FE',
+            },
+          },
+          boxShadow: {
+            'echo-card': '0 2px 8px rgba(167,139,250,0.10), 0 8px 32px rgba(167,139,250,0.12)',
+            'echo-card-hover': '0 4px 16px rgba(167,139,250,0.18), 0 16px 48px rgba(167,139,250,0.16)',
+            'echo-inset': 'inset 0 2px 6px rgba(167,139,250,0.10)',
+          },
+          keyframes: {
+            'slide-in': {
+              '0%': { opacity: '0', transform: 'translateX(2rem)' },
+              '100%': { opacity: '1', transform: 'translateX(0)' },
+            },
+            'fade-out': {
+              '0%': { opacity: '1' },
+              '100%': { opacity: '0', transform: 'translateY(-0.5rem)' },
+            },
+            'progress': {
+              '0%': { width: '0%', opacity: '1' },
+              '80%': { width: '85%', opacity: '1' },
+              '100%': { width: '100%', opacity: '0' },
+            },
+          },
+          animation: {
+            'slide-in': 'slide-in 0.3s cubic-bezier(0.16,1,0.3,1) forwards',
+            'fade-out': 'fade-out 0.4s ease-in forwards',
+            'progress': 'progress 1.8s ease-out forwards',
+          },
+        },
+      },
+    };
+  </script>
+
+  <!-- ────────────────────────────────────────────────────────────────
+       CSS custom properties + global base styles
+  ─────────────────────────────────────────────────────────────────── -->
+  <style>
+    :root {
+      --echo-deep: #1E1B4B;
+      --echo-accent: #C084FC;
+      --echo-accent-soft: #EDE9FE;
+      --echo-surface: #F5F3FF;
+      --echo-card: #FFFFFF;
+      --echo-amber: #F59E0B;
+      --echo-success: #10B981;
+      --echo-error: #EF4444;
+      --echo-muted: #6B7280;
+      --echo-border: #DDD6FE;
+      --echo-surface-glass: rgba(245, 243, 255, 0.85);
+
+      /* Liquid variables */
+      --liquid-bg: rgba(255, 255, 255, 0.4);
+      --liquid-border: rgba(255, 255, 255, 0.8);
+      --liquid-shadow: 0 4px 15px rgba(0, 0, 0, 0.05), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+      --liquid-hover-bg: rgba(147, 197, 253, 0.3);
+      --liquid-hover-border: rgba(96, 165, 250, 0.6);
+      --liquid-hover-shadow: 0 8px 32px rgba(59, 130, 246, 0.2), inset 0 0 15px rgba(255, 255, 255, 0.6);
+      --liquid-active-bg: rgba(192, 132, 252, 0.3);
+      --liquid-active-border: rgba(168, 85, 247, 0.6);
+      --liquid-active-shadow: 0 4px 15px rgba(168, 85, 247, 0.3), inset 0 0 20px rgba(255, 255, 255, 0.8);
+    }
+
+    .dark {
+      --echo-deep: #F8FAFC;
+      --echo-surface: #0B0B1A;
+      --echo-card: #15152A;
+      --echo-border: #2E2E48;
+      --echo-accent-soft: #3B0764;
+      --echo-surface-glass: rgba(11, 11, 26, 0.85);
+
+      /* Dark Liquid variables (enhanced for deep violet glassmorphism) */
+      --liquid-bg: rgba(18, 14, 40, 0.5);
+      --liquid-border: rgba(192, 132, 252, 0.2);
+      --liquid-shadow: 0 4px 15px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+      --liquid-hover-bg: rgba(59, 130, 246, 0.15);
+      --liquid-hover-border: rgba(96, 165, 250, 0.4);
+      --liquid-hover-shadow: 0 8px 32px rgba(59, 130, 246, 0.2), inset 0 0 15px rgba(255, 255, 255, 0.1);
+      --liquid-active-bg: rgba(168, 85, 247, 0.15);
+      --liquid-active-border: rgba(168, 85, 247, 0.4);
+      --liquid-active-shadow: 0 4px 15px rgba(168, 85, 247, 0.3), inset 0 0 20px rgba(255, 255, 255, 0.15);
+    }
+
+    /* Base */
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      background-color: var(--echo-surface);
+    }
+
+    body {
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      background-color: transparent;
+      color: var(--echo-deep);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      position: relative;
+      z-index: 1;
+    }
+
+    .font-mono,
+    code,
+    pre {
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+    }
+
+    /* ── Neumorphic card (Now Glassmorphic) ─────────────────────── */
+    .echo-card {
+      background: var(--liquid-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--liquid-border);
+      border-radius: 1rem;
+      box-shadow: var(--liquid-shadow);
+      transition: box-shadow 0.25s ease, transform 0.25s ease, background 0.25s ease, border-color 0.25s ease;
+    }
+
+    .echo-card:hover {
+      background: var(--liquid-hover-bg);
+      border-color: var(--liquid-hover-border);
+      box-shadow: var(--liquid-hover-shadow);
+      transform: translateY(-1px);
+    }
+
+    /* Inset / pressed variant */
+    .echo-card-inset {
+      background: rgba(0, 0, 0, 0.05);
+      border: 1px solid var(--liquid-border);
+      border-radius: 0.75rem;
+      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    /* ── HTMX progress bar ───────────────────────────────────────── */
+    #htmx-progress {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 3px;
+      width: 0%;
+      background: linear-gradient(90deg, var(--echo-deep), var(--echo-accent));
+      z-index: 9999;
+      pointer-events: none;
+      opacity: 0;
+      border-radius: 0 2px 2px 0;
+      transition: opacity 0.15s ease;
+    }
+
+    #htmx-progress.htmx-request {
+      animation: progress 1.8s ease-out forwards;
+      opacity: 1;
+    }
+
+    @keyframes progress {
+      0% {
+        width: 0%;
+        opacity: 1;
+      }
+
+      80% {
+        width: 85%;
+        opacity: 1;
+      }
+
+      100% {
+        width: 100%;
+        opacity: 0;
+      }
+    }
+
+    /* ── Toast animations ────────────────────────────────────────── */
+    @keyframes slide-in {
+      0% {
+        opacity: 0;
+        transform: translateX(2rem);
+      }
+
+      100% {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes fade-out {
+      0% {
+        opacity: 1;
+      }
+
+      100% {
+        opacity: 0;
+        transform: translateY(-0.5rem);
+      }
+    }
+
+    .toast-enter {
+      animation: slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .toast-leave {
+      animation: fade-out 0.4s ease-in forwards;
+    }
+
+    /* ── Scrollbar styling ───────────────────────────────────────── */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--echo-surface);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--echo-border);
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--echo-accent);
+    }
+
+    /* ── Focus ring using accent, not Tailwind blue ──────────────── */
+    :focus-visible {
+      outline: 2px solid var(--echo-accent);
+      outline-offset: 2px;
+      border-radius: 4px;
+    }
+
+    /* ── Utility: selection colour ───────────────────────────────── */
+    ::selection {
+      background-color: rgba(192, 132, 252, 0.25);
+      color: var(--echo-deep);
+    }
+
+    /* ── 3D Flip & Liquid Styles ─────────────────────────────────── */
+    .perspective-1000 {
+      perspective: 1000px;
+    }
+
+    .preserve-3d {
+      transform-style: preserve-3d;
+    }
+
+    .backface-hidden {
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+    }
+
+    .rotate-x-180 {
+      transform: rotateX(180deg);
+    }
+
+    .hover-float {
+      transform: translateY(-4px) rotateX(5deg) rotateY(2deg);
+    }
+
+    .liquid-glass {
+      background: var(--liquid-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--liquid-border);
+      box-shadow: var(--liquid-shadow);
+    }
+
+    .liquid-glow-blue {
+      background: rgba(147, 197, 253, 0.3) !important;
+      border-color: rgba(96, 165, 250, 0.6) !important;
+      box-shadow: 0 8px 32px rgba(59, 130, 246, 0.2), inset 0 0 15px rgba(255, 255, 255, 0.6) !important;
+    }
+
+    .liquid-glow-purple {
+      background: rgba(192, 132, 252, 0.2) !important;
+      border-color: rgba(168, 85, 247, 0.5) !important;
+      box-shadow: 0 8px 32px rgba(168, 85, 247, 0.2), inset 0 0 15px rgba(255, 255, 255, 0.6) !important;
+    }
+
+    /* Reusable Liquid Button */
+    .liquid-btn {
+      background: var(--liquid-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--liquid-border);
+      box-shadow: var(--liquid-shadow);
+      transition: all 0.3s cubic-bezier(0.4, 0.2, 0.2, 1);
+      color: var(--echo-deep);
+    }
+
+    .liquid-btn:hover {
+      transform: translateY(-2px);
+      background: var(--liquid-hover-bg);
+      border-color: var(--liquid-hover-border);
+      box-shadow: var(--liquid-hover-shadow);
+    }
+
+    .liquid-btn:active {
+      transform: scale(0.96);
+      background: var(--liquid-active-bg);
+      border-color: var(--liquid-active-border);
+      box-shadow: var(--liquid-active-shadow);
+    }
+
+    /* ── Neumorphic 3D Theme Toggle ───────────────────────────────── */
+    .neuo-toggle {
+      --neuo-size: 44px;
+      --neuo-bg-light: #ece9f6;
+      --neuo-shadow-light:
+        0 8px 18px -3px rgba(0, 0, 0, 0.28),
+        inset 0 -2px 3px -1px rgba(0, 0, 0, 0.15),
+        0 -6px 12px -1px rgba(255, 255, 255, 0.75),
+        inset 0 2px 3px -1px rgba(255, 255, 255, 0.22),
+        inset 0 0 4px 1px rgba(255, 255, 255, 0.75),
+        inset 0 14px 22px 0 rgba(255, 255, 255, 0.18);
+      --neuo-shadow-pressed:
+        0 6px 16px -3px rgba(0, 0, 0, 0.22),
+        inset 0 -5px 22px 1px rgba(255, 255, 255, 0.85),
+        0 -6px 12px -1px rgba(255, 255, 255, 0.55),
+        inset 0 5px 18px 0 rgba(0, 0, 0, 0.22),
+        inset 0 0 8px 1px rgba(255, 255, 255, 0.55);
+      /* dark mode overrides */
+      --neuo-bg-dark: #1e1c34;
+      --neuo-shadow-dark:
+        0 8px 18px -3px rgba(0, 0, 0, 0.6),
+        inset 0 -2px 3px -1px rgba(0, 0, 0, 0.4),
+        0 -6px 12px -1px rgba(255, 255, 255, 0.06),
+        inset 0 2px 3px -1px rgba(255, 255, 255, 0.08),
+        inset 0 0 4px 1px rgba(255, 255, 255, 0.06),
+        inset 0 14px 22px 0 rgba(255, 255, 255, 0.05);
+      --neuo-shadow-dark-pressed:
+        0 4px 14px -3px rgba(0, 0, 0, 0.7),
+        inset 0 -5px 22px 1px rgba(255, 255, 255, 0.06),
+        0 -4px 10px -1px rgba(255, 255, 255, 0.04),
+        inset 0 5px 18px 0 rgba(0, 0, 0, 0.5),
+        inset 0 0 8px 1px rgba(255, 255, 255, 0.04);
+
+      position: relative;
+      width: var(--neuo-size);
+      height: var(--neuo-size);
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    /* The actual round button disc */
+    .neuo-toggle .neuo-disc {
+      width: var(--neuo-size);
+      height: var(--neuo-size);
+      border-radius: 50%;
+      background: var(--neuo-bg-light);
+      box-shadow: var(--neuo-shadow-light);
+      transition: box-shadow 280ms cubic-bezier(0.23, 1, 0.32, 1),
+        background 280ms ease,
+        filter 280ms ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    /* The hidden checkbox drives state */
+    .neuo-toggle input[type="checkbox"] {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
+      z-index: 2;
+      margin: 0;
+    }
+
+    /* Pressed state (mousedown) */
+    .neuo-toggle input:active~.neuo-disc {
+      filter: blur(0.4px);
+      box-shadow: var(--neuo-shadow-pressed);
+    }
+
+    /* Checked = dark mode ON → disc stays pressed-in */
+    .neuo-toggle input:checked~.neuo-disc {
+      filter: blur(0.3px);
+      box-shadow: var(--neuo-shadow-pressed);
+    }
+
+    /* Icon sizing */
+    .neuo-toggle .neuo-icon {
+      width: 20px;
+      height: 20px;
+      transition: opacity 200ms ease, transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+      pointer-events: none;
+    }
+
+    /* Dark-mode surface overrides */
+    .dark .neuo-toggle .neuo-disc {
+      background: var(--neuo-bg-dark);
+      box-shadow: var(--neuo-shadow-dark);
+    }
+
+    .dark .neuo-toggle input:active~.neuo-disc,
+    .dark .neuo-toggle input:checked~.neuo-disc {
+      box-shadow: var(--neuo-shadow-dark-pressed);
+    }
+  </style>
+
+  <!-- ── Per-page head extras ───────────────────────────────────── -->
+  {% block head %}{% endblock %}
+</head>
+
+<body class="min-h-screen flex flex-col" hx-boost="true">
+
+  <!-- Background orbs — must be first children, z-index:0, pointer-events:none -->
+  <div class="echo-orb echo-orb-1"></div>
+  <div class="echo-orb echo-orb-2"></div>
+  <div class="echo-orb echo-orb-3"></div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       GLOBAL ANIMATED BACKGROUND (Glassmorphism backdrop)
+  ═══════════════════════════════════════════════════════════════ -->
+  <div id="echo-bg" x-data
+    x-init="import(`{% static 'core/js/echo-background.js' %}`).then(m => window.echoBgCleanup = m.initEchoBackground('echo-bg'))"
+    @htmx:before-cleanup.window="if(window.echoBgCleanup) window.echoBgCleanup()"
+    style="position:fixed;inset:0;z-index:-1;pointer-events:none;"></div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       HTMX loading indicator – thin violet progress bar
+  ═══════════════════════════════════════════════════════════════ -->
+  <div id="htmx-progress" aria-hidden="true"></div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       NAVIGATION
+  ═══════════════════════════════════════════════════════════════ -->
+  <header class="echo-glass sticky top-0 z-50 w-full"
+    style="border-radius:0; border-bottom: 1px solid rgba(255,255,255,0.08);">
+    <nav class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-4" role="navigation"
+      aria-label="Main navigation">
+      <!-- Wordmark -->
+      <a href="/" class="select-none tracking-tight leading-none flex-shrink-0" aria-label="ECHO home">
+        <span style="
+            font-family: 'Inter', sans-serif;
+            font-weight: 800;
+            font-size: 1.35rem;
+            letter-spacing: -0.03em;
+            color: var(--echo-deep);
+          ">ECH<span style="color: var(--echo-accent);">O</span></span>
+      </a>
+
+      <!-- Page-specific top nav (e.g. Nav Pill) -->
+      <div class="flex-1 min-w-0 flex justify-center">
+        {% block top_nav %}{% endblock %}
+      </div>
+
+      <!-- Theme Toggle -->
+      <div id="nav-actions" class="flex items-center gap-3">
+        <!-- Neumorphic 3D Theme Toggle -->
+        <label class="neuo-toggle" aria-label="Toggle Dark Mode" title="Toggle light / dark mode">
+          <input type="checkbox" :checked="theme === 'dark'"
+            @change="theme = $event.target.checked ? 'dark' : 'light'; localStorage.setItem('theme', theme)" />
+          <span class="neuo-disc">
+            <!-- Moon — visible in light mode (dark mode off) -->
+            <svg x-show="theme === 'light'" class="neuo-icon" viewBox="0 0 24 24" fill="none" stroke="#6B7280"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            </svg>
+            <!-- Sun — visible in dark mode (dark mode on) -->
+            <svg x-show="theme === 'dark'" style="display:none;" class="neuo-icon" viewBox="0 0 24 24" fill="none"
+              stroke="#C084FC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="5" />
+              <line x1="12" y1="1" x2="12" y2="3" />
+              <line x1="12" y1="21" x2="12" y2="23" />
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+              <line x1="1" y1="12" x2="3" y2="12" />
+              <line x1="21" y1="12" x2="23" y2="12" />
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+            </svg>
+          </span>
+        </label>
+        {% block nav_actions %}{% endblock %}
+      </div>
+    </nav>
+  </header>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       MAIN CONTENT
+  ═══════════════════════════════════════════════════════════════ -->
+  <main id="main-content" class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" role="main">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       FOOTER (minimal, v1)
+  ═══════════════════════════════════════════════════════════════ -->
+  <footer class="w-full py-2 text-center text-xs"
+    style="color: var(--echo-muted); border-top: 1px solid var(--echo-border);" role="contentinfo">
+    <span style="font-family: 'Inter', sans-serif;">
+      &copy; {% now "Y" %} ECHO &mdash; built with Django&nbsp;5
+    </span>
+  </footer>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       TOAST NOTIFICATION CONTAINER
+       Usage (Alpine): $store.toasts.addToast('message', 'success')
+  ═══════════════════════════════════════════════════════════════ -->
+  {% include "core/_toast.html" %}
+
+  <!-- ══════════════════════════════════════════════════════════════
+       CDN SCRIPTS  (load order matters)
+       1. HTMX  →  2. Alpine  →  3. per-page scripts
+  ═══════════════════════════════════════════════════════════════ -->
+
+  <!-- HTMX 1.9 -->
+  <script src="{% static 'core/js/htmx.min.js' %}" defer></script>
+
+  <!-- ECHO Upload Component (load before Alpine so it's available) -->
+  <script src="{% static 'core/js/echo-upload.js' %}" defer></script>
+
+  <!-- ECHO Chat Component (load before Alpine so it's available) -->
+  <script src="{% static 'core/js/echo-chat.js' %}" defer></script>
+
+  <!-- ECHO Media Player Component (load before Alpine) -->
+  <script src="{% static 'core/js/echo-player.js' %}?v=5" defer></script>
+
+  <!-- Alpine.js 3 (defer so x-data is parsed after DOM) -->
+  <script src="{% static 'core/js/alpine.min.js' %}" defer></script>
+
+  <!-- HTMX progress bar wiring (runs after HTMX loads) -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      var bar = document.getElementById('htmx-progress');
+      if (!bar) return;
+
+      document.body.addEventListener('htmx:beforeSend', function () {
+        bar.classList.remove('htmx-request');
+        // Force reflow to restart animation
+        void bar.offsetWidth;
+        bar.classList.add('htmx-request');
+      });
+
+      document.body.addEventListener('htmx:afterOnLoad', function () {
+        bar.classList.remove('htmx-request');
+      });
+
+      document.body.addEventListener('htmx:responseError', function () {
+        bar.classList.remove('htmx-request');
+      });
+    });
+  </script>
+
+  <!-- Three.js importmap — used by pages that need WebGL backgrounds -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+      }
+    }
+  </script>
+
+  <!-- Per-page script block -->
+  {% block scripts %}{% endblock %}
+
+</body>
+
+</html>

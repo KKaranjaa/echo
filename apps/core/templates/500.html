@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="h-[calc(100vh-4rem)] flex flex-col items-center justify-center text-center px-4 w-full">
+  
+  <div class="w-24 h-24 rounded-full flex items-center justify-center mb-6 shadow-md" style="background-color: var(--echo-error); color: white;">
+    <svg class="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+  </div>
+  
+  <h1 class="text-3xl font-bold mb-4 tracking-tight" style="color: var(--echo-deep);">Something went wrong on our end.</h1>
+  <p class="text-base font-medium mb-8 max-w-sm mx-auto" style="color: var(--echo-muted);">
+    We're looking into it. In the meantime, you can try uploading your file again.
+  </p>
+  <a href="/" class="px-6 py-3 rounded-xl font-bold transition-transform hover:-translate-y-0.5 shadow-md hover:shadow-lg inline-block echo-btn" 
+     style="background-color: var(--echo-deep); color: white;">
+    Upload a new recording
+  </a>
+</div>
+{% endblock %}

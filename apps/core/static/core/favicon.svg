@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="ECHO">
+  <title>ECHO</title>
+
+  <!-- Background: deep indigo rounded rectangle -->
+  <rect width="32" height="32" rx="6" ry="6" fill="#1E1B4B"/>
+
+  <!-- Letter 'E' — Inter ExtraBold approximated with path geometry -->
+  <!-- Vertical stem -->
+  <rect x="8" y="7" width="3" height="18" rx="0.5" fill="#FFFFFF"/>
+  <!-- Top bar -->
+  <rect x="8" y="7" width="12" height="3" rx="0.5" fill="#FFFFFF"/>
+  <!-- Mid bar (slightly shorter, classic E proportion) -->
+  <rect x="8" y="14.5" width="9.5" height="2.5" rx="0.5" fill="#FFFFFF"/>
+  <!-- Bottom bar -->
+  <rect x="8" y="22" width="12" height="3" rx="0.5" fill="#FFFFFF"/>
+
+  <!-- Acoustic arc — brand metaphor: sound/echo radiating below the 'E'
+       A subtle curved stroke in violet, like a soundwave or echo ring.
+       Centered at x=16, sitting just above the bottom edge. -->
+  <path
+    d="M 11 27.5 Q 16 30.5 21 27.5"
+    fill="none"
+    stroke="#C084FC"
+    stroke-width="1.8"
+    stroke-linecap="round"
+  />
+</svg>

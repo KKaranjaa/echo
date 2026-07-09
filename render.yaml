@@ -1,0 +1,73 @@
+services:
+  - type: web
+    name: echo-web
+    env: python
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn echo.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: echo-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: echo-redis
+          property: connectionString
+      - key: TRANSCRIPTION_BACKEND
+        value: groq
+      - key: GROQ_API_KEY
+        sync: false   # set in Render dashboard
+      - key: ANTHROPIC_API_KEY
+        sync: false   # set in Render dashboard
+    disk:
+      name: media
+      mountPath: /var/data/media
+      sizeGB: 10
+
+  - type: worker
+    name: echo-celery
+    env: python
+    buildCommand: "./build.sh"
+    startCommand: "celery -A echo worker --loglevel=info --concurrency=2"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: echo-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: echo-redis
+          property: connectionString
+      - key: TRANSCRIPTION_BACKEND
+        value: groq
+      - key: GROQ_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
+  - type: worker
+    name: echo-celery-beat
+    env: python
+    buildCommand: "./build.sh"
+    startCommand: "celery -A echo beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: echo-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: echo-redis
+          property: connectionString
+
+  - type: pserv
+    name: echo-db
+    env: postgres
+    plan: free
+
+  - type: redis
+    name: echo-redis
+    plan: free

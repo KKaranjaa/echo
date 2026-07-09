@@ -1,0 +1,175 @@
+<div class="echo-glass max-w-2xl mx-auto py-4 h-full flex flex-col" x-data="flashcardsTab()">
+
+
+  {% if not session.summary.flashcards %}
+  <!-- Empty State -->
+  <div class="echo-card w-full p-12 flex flex-col items-center justify-center text-center mt-12 max-w-xl mx-auto">
+    <div class="w-16 h-16 rounded-full flex items-center justify-center mb-6 relative bg-purple-50" style="color: var(--echo-accent);">
+      <div class="absolute inset-0 rounded-full animate-ping opacity-20" style="background-color: var(--echo-accent);"></div>
+      <span class="text-3xl relative z-10">💡</span>
+    </div>
+    <h3 class="text-lg font-bold mb-2" style="color: var(--echo-deep);">No flashcards generated</h3>
+    <p class="text-sm font-medium mb-6" style="color: var(--echo-subtext);">
+      This recording didn't contain enough distinct definition-based concepts, key terminology, or Q&A patterns to generate standard study flashcards.
+    </p>
+    <div class="p-4 rounded-xl border border-[color:var(--echo-border)] bg-purple-50/30 text-left w-full">
+      <h4 class="text-xs font-bold uppercase tracking-wider mb-2 text-purple-800">What to do next:</h4>
+      <ul class="text-xs font-semibold text-purple-950 space-y-1.5 list-disc pl-4">
+        <li>Head over to the <strong>Ask ECHO</strong> tab and ask: <em>"Quiz me on this lecture with 5 questions."</em></li>
+        <li>Upload a longer recording next time, focusing on core concepts and vocabulary definitions.</li>
+      </ul>
+    </div>
+  </div>
+  {% else %}
+
+  <!-- Progress Header -->
+  <div class="flex items-center justify-between mb-8 px-2" x-show="!isComplete">
+    <h3 class="text-sm font-bold uppercase tracking-widest" style="color: var(--echo-muted);">Study Mode</h3>
+    <div class="px-3 py-1 rounded-full text-xs font-bold" style="background-color: var(--echo-accent-soft); color: var(--echo-accent);">
+      <span x-text="currentIndex + 1"></span> / <span x-text="totalCards"></span>
+    </div>
+  </div>
+
+  <!-- Cards Container -->
+  <div class="flex-1 relative perspective-1000" x-show="!isComplete"
+       @keydown.window.right="nextCard()" 
+       @keydown.window.left="prevCard()"
+       @keydown.window.space.prevent="isFlipped = !isFlipped">
+    
+    <template x-for="(card, index) in cards" :key="index">
+      <div class="absolute inset-0 transition-transform duration-500"
+           x-show="currentIndex === index"
+           x-transition:enter="transition transform ease-out duration-300"
+           x-transition:enter-start="translate-x-12 opacity-0"
+           x-transition:enter-end="translate-x-0 opacity-100"
+           x-transition:leave="transition transform ease-in duration-300"
+           x-transition:leave-start="translate-x-0 opacity-100"
+           x-transition:leave-end="-translate-x-12 opacity-0">
+           
+        <!-- Flippable Card -->
+        <div class="w-full h-80 relative preserve-3d cursor-pointer group" 
+             :class="isFlipped ? 'rotate-y-180' : ''"
+             @click="isFlipped = !isFlipped">
+          
+          <!-- Front -->
+          <div class="absolute inset-0 backface-hidden echo-card flex flex-col items-center justify-center p-8 text-center bg-white shadow-xl">
+            <p class="text-2xl font-bold font-sans leading-tight mb-8" style="color: var(--echo-deep);" x-text="card.question"></p>
+            <p class="text-xs font-semibold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-8" style="color: var(--echo-muted);">Tap or Space to reveal</p>
+          </div>
+
+          <!-- Back -->
+          <div class="absolute inset-0 backface-hidden rotate-y-180 echo-card flex flex-col items-center justify-center p-8 text-center shadow-xl" style="background-color: var(--echo-surface);">
+            <p class="text-lg font-medium leading-relaxed mb-10" style="color: var(--echo-deep);" x-text="card.answer"></p>
+            
+            <div class="absolute bottom-8 flex gap-4 w-full justify-center px-8" @click.stop>
+              <button @click.stop="markResult('learning')" class="flex-1 py-3 rounded-xl text-sm font-bold border-2 transition-transform hover:-translate-y-0.5 echo-btn" style="border-color: var(--echo-border); color: var(--echo-muted);">
+                Still learning
+              </button>
+              <button @click.stop="markResult('got_it')" class="flex-1 py-3 rounded-xl text-sm font-bold text-white shadow-md transition-transform hover:-translate-y-0.5 echo-btn" style="background-color: var(--echo-success);">
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <!-- Keyboard hints -->
+  <div class="text-center mt-8 text-xs font-medium space-x-4" style="color: var(--echo-muted);" x-show="!isComplete">
+    <span><kbd class="px-1.5 py-0.5 rounded border border-[color:var(--echo-border)] bg-white">←</kbd> <kbd class="px-1.5 py-0.5 rounded border border-[color:var(--echo-border)] bg-white">→</kbd> Navigate</span>
+    <span><kbd class="px-1.5 py-0.5 rounded border border-[color:var(--echo-border)] bg-white">Space</kbd> Flip</span>
+  </div>
+
+  <!-- Completion State -->
+  <div class="echo-card w-full p-12 flex flex-col items-center justify-center text-center mt-12 animate-spring-up" x-show="isComplete" style="display: none;">
+    <div class="text-6xl mb-6">🎉</div>
+    <h3 class="text-2xl font-extrabold mb-2" style="color: var(--echo-deep);">Done — you've covered it all.</h3>
+    <p class="text-sm font-medium mb-8" style="color: var(--echo-muted);">Great study session!</p>
+    <button @click="reset()" class="px-6 py-3 rounded-xl text-sm font-bold transition-transform hover:-translate-y-0.5 echo-btn" style="background-color: var(--echo-accent-soft); color: var(--echo-accent);">
+      Study again
+    </button>
+  </div>
+
+  {% endif %}
+</div>
+
+<style>
+  .perspective-1000 { perspective: 1000px; }
+  .preserve-3d { transform-style: preserve-3d; }
+  .backface-hidden { backface-visibility: hidden; }
+  .rotate-y-180 { transform: rotateY(180deg); }
+  
+  @keyframes springUp {
+    0% { transform: scale(0.8) translateY(20px); opacity: 0; }
+    50% { transform: scale(1.05) translateY(-5px); opacity: 1; }
+    100% { transform: scale(1) translateY(0); opacity: 1; }
+  }
+  .animate-spring-up { animation: springUp 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+</style>
+
+<script type="application/json" id="flashcards-data">
+  {
+    "cards": [
+      {% for card in session.summary.flashcards %}
+      { "question": "{{ card.question|escapejs }}", "answer": "{{ card.answer|escapejs }}" }{% if not forloop.last %},{% endif %}
+      {% endfor %}
+    ],
+    "totalCards": {{ session.summary.flashcards|length|default:0 }}
+  }
+</script>
+
+<script>
+  function flashcardsTab() {
+    return {
+      cards: [],
+      currentIndex: 0,
+      totalCards: 0,
+      isFlipped: false,
+      isComplete: false,
+
+      init() {
+        const el = document.getElementById('flashcards-data');
+        if (el) {
+          try {
+            const data = JSON.parse(el.textContent);
+            this.cards = data.cards;
+            this.totalCards = data.totalCards;
+          } catch (e) {
+            console.error('Failed to parse flashcards data', e);
+          }
+        }
+      },
+
+      nextCard() {
+        if (this.isComplete) return;
+        this.isFlipped = false;
+        setTimeout(() => {
+          if (this.currentIndex < this.totalCards - 1) {
+            this.currentIndex++;
+          } else {
+            this.isComplete = true;
+          }
+        }, 150);
+      },
+
+      prevCard() {
+        if (this.isComplete || this.currentIndex === 0) return;
+        this.isFlipped = false;
+        setTimeout(() => {
+          this.currentIndex--;
+        }, 150);
+      },
+
+      markResult(status) {
+        this.nextCard();
+      },
+
+      reset() {
+        this.currentIndex = 0;
+        this.isFlipped = false;
+        this.isComplete = false;
+      }
+    }
+  }
+</script>

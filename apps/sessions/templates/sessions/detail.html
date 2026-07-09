@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="w-full max-w-7xl mx-auto flex flex-col lg:flex-row gap-6 h-[calc(100vh-4rem)]" x-data="sessionDetail()">
+  
+  <!-- Col 1: Sidebar (Metadata & Export) -->
+  <aside class="w-full lg:w-60 shrink-0 flex flex-col gap-4">
+    <!-- Metadata Card -->
+    <div class="echo-card p-5">
+      <h3 class="font-bold text-lg mb-4 truncate" style="color: var(--echo-deep);" title="{{ session.original_filename }}">
+        {{ session.original_filename }}
+      </h3>
+      <div class="space-y-3 text-sm font-medium" style="color: var(--echo-muted);">
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          <span>{% if session.duration_seconds %}{{ session.duration_seconds }}s{% else %}Unknown duration{% endif %}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" /></svg>
+          <span class="uppercase tracking-wider">{{ session.detected_language|default:"EN" }}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+          <span>{{ session.created_at|date:"M j, Y" }}</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Export Actions -->
+    <div class="echo-card p-3 flex flex-col gap-2">
+      <h4 class="text-xs font-bold uppercase tracking-wider mb-1 px-2" style="color: var(--echo-muted);">Export</h4>
+      <button class="text-left px-3 py-2 text-sm font-semibold rounded-lg hover:bg-[color:var(--echo-surface)] transition-colors echo-btn" style="color: var(--echo-deep);">
+        📋 Copy summary
+      </button>
+      <button class="text-left px-3 py-2 text-sm font-semibold rounded-lg hover:bg-[color:var(--echo-surface)] transition-colors echo-btn" style="color: var(--echo-deep);">
+        📄 Download .txt
+      </button>
+      <button class="text-left px-3 py-2 text-sm font-semibold rounded-lg hover:bg-[color:var(--echo-surface)] transition-colors echo-btn" style="color: var(--echo-deep);">
+        🗂 Download CSV
+      </button>
+    </div>
+  </aside>
+
+  <!-- Col 2: Tab Panel (Main Content) -->
+  <main class="flex-1 flex flex-col min-w-0 echo-card overflow-hidden">
+    <!-- Tab Bar (sticky glass) -->
+    <div class="flex px-2 border-b border-[color:var(--echo-border)] overflow-x-auto no-scrollbar pt-2 sticky top-0 z-10"
+         style="background: var(--liquid-bg); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-radius: 1rem 1rem 0 0;">
+      <template x-for="tab in tabs" :key="tab.id">
+        <button @click="activeTab = tab.id" 
+                class="group px-5 py-3 text-sm transition-all whitespace-nowrap relative outline-none"
+                :class="activeTab === tab.id ? 'font-bold' : 'font-medium opacity-60 hover:opacity-100'"
+                :style="activeTab === tab.id ? 'color: var(--echo-deep);' : 'color: var(--echo-muted);'">
+          <span x-text="tab.label"></span>
+          <!-- Badge count (Tasks & Flashcards only) -->
+          <span x-show="tab.badge > 0"
+                x-text="tab.badge"
+                class="ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                style="background: var(--echo-accent-soft); color: var(--echo-accent);"></span>
+          <!-- Keyboard shortcut hint (desktop only, on hover) -->
+          <kbd x-show="tab.shortcut"
+               x-text="tab.shortcut"
+               class="hidden lg:block absolute -top-1 -right-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150 text-[9px] font-mono px-1 rounded border"
+               style="border-color: var(--echo-border); background: var(--echo-surface); color: var(--echo-muted);"></kbd>
+          <!-- Active Indicator -->
+          <div x-show="activeTab === tab.id" 
+               x-transition:enter="transition ease-out duration-200"
+               x-transition:enter-start="opacity-0 scale-x-50"
+               x-transition:enter-end="opacity-100 scale-x-100"
+               class="absolute bottom-0 left-0 right-0 h-0.5 rounded-t-full bg-[color:var(--echo-accent)]"></div>
+        </button>
+      </template>
+
+      <!-- Ask ECHO — standalone button, pushed to far right -->
+      <button @click="activeTab = 'ask_echo'"
+              class="group ml-auto px-5 py-3 text-sm transition-all whitespace-nowrap relative outline-none border-l border-[color:var(--echo-border)]"
+              :class="activeTab === 'ask_echo' ? 'font-bold' : 'font-medium opacity-60 hover:opacity-100'"
+              :style="activeTab === 'ask_echo' ? 'color: var(--echo-deep);' : 'color: var(--echo-muted);'">
+        <!-- Chat bubble icon with pulse when inactive -->
+        <span class="inline-flex items-center gap-1.5">
+          <span class="relative inline-flex items-center justify-center" style="width:14px; height:14px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--echo-accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="relative z-10">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            <!-- Pulse ring — only when NOT active -->
+            <span x-show="activeTab !== 'ask_echo'"
+                  class="absolute inset-0 rounded-full echo-chat-pulse"
+                  style="border: 1.5px solid var(--echo-accent);"></span>
+          </span>
+          <span>Ask ECHO</span>
+        </span>
+        <!-- Active Indicator -->
+        <div x-show="activeTab === 'ask_echo'"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 scale-x-50"
+             x-transition:enter-end="opacity-100 scale-x-100"
+             class="absolute bottom-0 left-0 right-0 h-0.5 rounded-t-full bg-[color:var(--echo-accent)]"></div>
+      </button>
+    </div>
+
+    <!-- Tab Content Area -->
+    <div class="flex-1 overflow-y-auto p-6 relative" style="background: transparent;">
+      
+      <!-- Alpine Transition Wrapper -->
+      <div x-show="activeTab === 'summary'" x-transition:enter="transition ease-out duration-150 delay-150" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="h-full">
+        {% include "sessions/_summary_tab.html" %}
+      </div>
+
+      <div x-show="activeTab === 'tasks'" x-transition:enter="transition ease-out duration-150 delay-150" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="h-full" style="display: none;">
+        {% include "sessions/_tasks_tab.html" %}
+      </div>
+
+      <div x-show="activeTab === 'flashcards'" x-transition:enter="transition ease-out duration-150 delay-150" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="h-full" style="display: none;">
+        {% include "sessions/_flashcards_tab.html" %}
+      </div>
+
+      <div x-show="activeTab === 'transcript'" x-transition:enter="transition ease-out duration-150 delay-150" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="h-full" style="display: none;">
+        {% include "sessions/_transcript_tab.html" %}
+      </div>
+
+      <div x-show="activeTab === 'ask_echo'" x-transition:enter="transition ease-out duration-150 delay-150" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="h-full" style="display: none;">
+        <!-- Inject chat panel from Sprint 4.2 -->
+        <!-- Normally we would use HTMX here, but for now we just render it or include it if available -->
+        <div hx-get="/chat/{{ session.id }}/" hx-trigger="intersect once" class="h-full">
+           <div class="animate-pulse h-full bg-[color:var(--echo-card)] rounded-xl opacity-50 flex items-center justify-center font-bold text-[color:var(--echo-muted)]">Loading Ask ECHO...</div>
+        </div>
+      </div>
+      
+    </div>
+  </main>
+
+  <!-- Col 3: Audio Player (Sticky) -->
+  <aside class="w-full lg:w-72 shrink-0 flex flex-col gap-4">
+    <div class="echo-card p-5 sticky top-4" x-data="echoMediaPlayer('{{ session.audio_url }}')">
+      <h4 class="text-sm font-bold mb-4" style="color: var(--echo-deep);">Playback</h4>
+      
+      <!-- Hidden Audio Element -->
+      <audio x-ref="audio" :src="audioUrl" preload="metadata" class="hidden"></audio>
+
+      <!-- Waveform Placeholder / Seek bar -->
+      <div class="h-16 rounded-lg mb-4 flex flex-col justify-end bg-[color:var(--echo-surface)] border border-[color:var(--echo-border)] overflow-hidden relative cursor-pointer" @click="scrub" x-ref="seekBar">
+        <!-- Progress overlay -->
+        <div class="absolute inset-y-0 left-0 bg-[color:var(--echo-accent-soft)] pointer-events-none opacity-50" :style="'width: ' + (duration ? (currentTime / duration * 100) : 0) + '%'"></div>
+        
+        <svg class="w-full h-8 px-2 absolute bottom-0 pointer-events-none" preserveAspectRatio="none" viewBox="0 0 100 20">
+          <path d="M0 10 Q 5 20, 10 10 T 20 10 T 30 10 T 40 10 T 50 10 T 60 10 T 70 10 T 80 10 T 90 10 T 100 10" fill="none" stroke="var(--echo-accent-soft)" stroke-width="2"/>
+          <path d="M0 10 Q 5 0, 10 10 T 20 10 T 30 10 T 40 10 T 50 10 T 60 10 T 70 10 T 80 10 T 90 10 T 100 10" fill="none" stroke="var(--echo-accent)" stroke-width="2"/>
+        </svg>
+      </div>
+
+      <!-- Controls -->
+      <div class="flex items-center justify-center gap-4 mb-4">
+        <!-- Skip Backward -->
+        <button @click="skipBackward" class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-[color:var(--echo-surface)] transition-colors" style="color: var(--echo-deep);" title="Back 10s">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z" /></svg>
+        </button>
+        <!-- Play / Pause -->
+        <button @click="togglePlay" class="w-14 h-14 rounded-full flex items-center justify-center shadow-md hover:scale-105 transition-transform" style="background-color: var(--echo-accent); color: white;">
+          <svg x-show="!playing" class="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+          <svg x-show="playing" style="display: none;" class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
+        </button>
+        <!-- Skip Forward -->
+        <button @click="skipForward" class="w-10 h-10 rounded-full flex items-center justify-center hover:bg-[color:var(--echo-surface)] transition-colors" style="color: var(--echo-deep);" title="Forward 10s">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.933 12.8a1 1 0 000-1.6L6.6 7.2A1 1 0 005 8v8a1 1 0 001.6.8l5.333-4zM19.933 12.8a1 1 0 000-1.6l-5.334-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.333-4z" /></svg>
+        </button>
+      </div>
+
+      <!-- Speed / Time -->
+      <div class="flex items-center justify-between text-xs font-semibold" style="color: var(--echo-muted);">
+        <span class="font-mono" x-text="`${formatTime(currentTime)} / ${formatTime(duration)}`">00:00 / 00:00</span>
+        <select @change="changeSpeed" class="bg-transparent border-none outline-none font-bold cursor-pointer" style="color: var(--echo-deep);">
+          <template x-for="rate in speeds" :key="rate">
+            <option :value="rate" :selected="rate === speed" x-text="`${rate}x`"></option>
+          </template>
+        </select>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       FLOATING ASK ECHO BUTTON — fixed in viewport, always visible
+  ════════════════════════════════════════════════════════════════ -->
+  <div class="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
+
+    <!-- Tooltip label — appears on hover when chat is closed -->
+    <div x-show="activeTab !== 'ask_echo'"
+         x-transition:enter="transition ease-out duration-150"
+         x-transition:enter-start="opacity-0 translate-x-2"
+         x-transition:enter-end="opacity-100 translate-x-0"
+         class="echo-fab-tooltip opacity-0 group-hover:opacity-100 pointer-events-none
+                px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap"
+         style="background: var(--liquid-bg); backdrop-filter: blur(12px);
+                border: 1px solid var(--liquid-border); color: var(--echo-deep);
+                box-shadow: var(--liquid-shadow);">
+      Ask ECHO
+    </div>
+
+    <!-- FAB button -->
+    <button id="echo-fab"
+            @click="activeTab === 'ask_echo' ? activeTab = 'summary' : activeTab = 'ask_echo'"
+            @mouseenter="$el.previousElementSibling.style.opacity='1'"
+            @mouseleave="$el.previousElementSibling.style.opacity='0'"
+            class="relative w-14 h-14 rounded-full flex items-center justify-center
+                   shadow-lg hover:scale-110 active:scale-95 transition-all duration-200 outline-none"
+            style="background: linear-gradient(135deg, var(--echo-accent), var(--echo-muted));
+                   box-shadow: 0 8px 32px rgba(192,132,252,0.45);"
+            :title="activeTab === 'ask_echo' ? 'Close chat' : 'Ask ECHO'">
+
+      <!-- Chat icon — shown when chat is NOT active -->
+      <svg x-show="activeTab !== 'ask_echo'"
+           width="22" height="22" viewBox="0 0 24 24" fill="none"
+           stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+
+      <!-- X icon — shown when chat IS active -->
+      <svg x-show="activeTab === 'ask_echo'"
+           style="display:none;"
+           width="20" height="20" viewBox="0 0 24 24" fill="none"
+           stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+
+      <!-- Pulse ring — only when chat is NOT active -->
+      <span x-show="activeTab !== 'ask_echo'"
+            class="absolute inset-0 rounded-full echo-fab-pulse pointer-events-none"
+            style="border: 2px solid rgba(192,132,252,0.6);"></span>
+    </button>
+  </div>
+</div>
+
+
+<script>
+  function sessionDetail() {
+    return {
+      activeTab: 'summary',
+      tabs: [
+        { id: 'summary',     label: 'Summary',     shortcut: 'S' },
+        { id: 'tasks',       label: 'Tasks',       shortcut: 'T', badge: parseInt('{{ session.summary.action_items|length|default:"0" }}') || 0 },
+        { id: 'flashcards',  label: 'Flashcards',  shortcut: 'F', badge: parseInt('{{ session.summary.flashcards|length|default:"0" }}') || 0 },
+        { id: 'transcript',  label: 'Transcript',  shortcut: 'R' },
+      ],
+      init() {
+        // Keyboard shortcuts for tab switching (S, T, F, R)
+        window.addEventListener('keydown', (e) => {
+          // Skip if user is typing in an input/textarea/contenteditable
+          const tag = document.activeElement?.tagName;
+          if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || document.activeElement?.isContentEditable) return;
+          // Skip if any modifier key is held
+          if (e.ctrlKey || e.metaKey || e.altKey) return;
+          const map = { s: 'summary', t: 'tasks', f: 'flashcards', r: 'transcript' };
+          const tabId = map[e.key.toLowerCase()];
+          if (tabId) {
+            e.preventDefault();
+            this.activeTab = tabId;
+          }
+        });
+      }
+    }
+  }
+</script>
+
+<!-- Styles for Ask ECHO chat-icon pulse animation -->
+<style>
+  @keyframes echo-chat-pulse {
+    0%   { transform: scale(1);   opacity: 0.6; }
+    50%  { transform: scale(1.8); opacity: 0; }
+    100% { transform: scale(1);   opacity: 0; }
+  }
+  .echo-chat-pulse {
+    animation: echo-chat-pulse 2s ease-out infinite;
+  }
+
+  /* FAB pulse ring — slightly slower for a calmer feel */
+  @keyframes echo-fab-pulse {
+    0%   { transform: scale(1);   opacity: 0.7; }
+    70%  { transform: scale(1.7); opacity: 0; }
+    100% { transform: scale(1);   opacity: 0; }
+  }
+  .echo-fab-pulse {
+    animation: echo-fab-pulse 2.4s ease-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .echo-chat-pulse,
+    .echo-fab-pulse { animation: none !important; }
+  }
+</style>
+{% endblock %}

@@ -1,0 +1,365 @@
+/* ═══════════════════════════════════════════════════════════════════
+   ECHO — Design Tokens (light + dark)
+   These vars are consumed by upload_zone.html and echo-background.js
+═══════════════════════════════════════════════════════════════════ */
+:root {
+  --echo-accent: #C084FC;
+  --echo-muted: #7C3AED;
+  --echo-text: #1E1B4B;
+  --echo-subtext: #6B7280;
+  --echo-border: rgba(192, 132, 252, 0.2);
+  --echo-card-bg: rgba(255, 255, 255, 0.92);
+  --echo-card-shadow:
+    12px 12px 28px rgba(192, 132, 252, 0.15),
+    -6px -6px 16px rgba(255, 255, 255, 0.80);
+  --echo-page-bg: #F5F3FF;
+}
+
+html.dark {
+  --echo-text: #EDE9FE;
+  --echo-subtext: #9CA3AF;
+  --echo-border: rgba(192, 132, 252, 0.25);
+  --echo-card-bg: rgba(21, 21, 42, 0.88);
+  --echo-card-shadow:
+    12px 12px 28px rgba(0, 0, 0, 0.55),
+    -6px -6px 16px rgba(192, 132, 252, 0.07);
+  --echo-page-bg: #0B0B1A;
+}
+
+body {
+  background: transparent;
+  color: var(--echo-text);
+  transition: background 0.4s ease, color 0.4s ease;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SONAR RINGS — idle state concentric pulse
+═══════════════════════════════════════════════════════════════════ */
+.echo-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1.5px solid var(--echo-accent);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(1);
+  animation: echo-sonar 3s ease-out infinite;
+}
+
+.echo-ring-1 {
+  width: min(80px, 10vh);
+  height: min(80px, 10vh);
+  animation-delay: 0s;
+}
+
+.echo-ring-2 {
+  width: min(112px, 13vh);
+  height: min(112px, 13vh);
+  animation-delay: 0.9s;
+}
+
+.echo-ring-3 {
+  width: min(144px, 16vh);
+  height: min(144px, 16vh);
+  animation-delay: 1.8s;
+}
+
+@keyframes echo-sonar {
+  0% {
+    transform: translate(-50%, -50%) scale(0.85);
+    opacity: 0.7;
+  }
+
+  100% {
+    transform: translate(-50%, -50%) scale(1.15);
+    opacity: 0;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ORBIT LABEL — floats above the mic icon
+═══════════════════════════════════════════════════════════════════ */
+.echo-orbit-label {
+  animation: echo-float 3s ease-in-out infinite;
+}
+
+@keyframes echo-float {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   OUTPUT BADGES
+═══════════════════════════════════════════════════════════════════ */
+.echo-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--echo-border);
+  color: var(--echo-subtext);
+  backdrop-filter: blur(8px);
+  background: rgba(192, 132, 252, 0.06);
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+  cursor: default;
+}
+
+.echo-badge:hover {
+  border-color: var(--echo-accent);
+  color: var(--echo-accent);
+  background: rgba(192, 132, 252, 0.12);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PIPELINE NODE STATES
+═══════════════════════════════════════════════════════════════════ */
+.echo-node-waiting {
+  background: rgba(192, 132, 252, 0.10);
+  border: 1.5px solid rgba(192, 132, 252, 0.25);
+  color: var(--echo-subtext);
+}
+
+.echo-node-active {
+  background: linear-gradient(135deg, var(--echo-accent), var(--echo-muted));
+  box-shadow: 0 0 20px rgba(192, 132, 252, 0.5);
+}
+
+.echo-node-done {
+  background: var(--echo-muted);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   RESULTS PREVIEW ANIMATIONS
+═══════════════════════════════════════════════════════════════════ */
+@keyframes echo-line-appear {
+  from {
+    opacity: 0;
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+
+  to {
+    opacity: 0.8;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes echo-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes echo-check-pop {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes echo-flip {
+  0% {
+    transform: rotateY(0deg);
+  }
+
+  50% {
+    transform: rotateY(90deg);
+  }
+
+  100% {
+    transform: rotateY(0deg);
+  }
+}
+
+@keyframes echo-progress-bar {
+  from {
+    width: 0%;
+  }
+
+  to {
+    width: 100%;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   UTILITIES
+═══════════════════════════════════════════════════════════════════ */
+@keyframes echo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes echo-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes echo-fade-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+.echo-fade-in {
+  animation: echo-fade-in 0.35s ease forwards;
+}
+
+.echo-fade-out {
+  animation: echo-fade-out 0.25s ease forwards;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CARD HOVER LIFT
+═══════════════════════════════════════════════════════════════════ */
+.echo-upload-card {
+  transition: box-shadow 0.4s ease, transform 0.4s ease;
+}
+
+.echo-upload-card:hover {
+  transform: translateY(-2px);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ACCESSIBILITY — reduced motion
+═══════════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+
+  .echo-ring,
+  .echo-orbit-label,
+  .echo-state-preview * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ═══════════════════════════════════════
+   ECHO GLASSMORPHISM
+   Light source: top-left corner.
+   Only border-top and border-left are
+   highlighted — not all four sides.
+═══════════════════════════════════════ */
+
+.echo-glass {
+  background-color: rgba(255, 255, 255, 0.00);
+  backdrop-filter: blur(3px) saturate(140%);
+  -webkit-backdrop-filter: blur(3px) saturate(140%);
+  border-radius: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.5);
+  border-left: 1px solid rgba(255, 255, 255, 0.3);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* Light mode — clear contrast and strong specular edge */
+html:not(.dark) .echo-glass {
+  background-color: rgba(255, 255, 255, 0.00);
+  backdrop-filter: blur(2px) saturate(150%);
+  -webkit-backdrop-filter: blur(2px) saturate(150%);
+  border-top: 1px solid rgba(255, 255, 255, 0.9);
+  border-left: 1px solid rgba(255, 255, 255, 0.8);
+  border-right: 1px solid rgba(255, 255, 255, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 10px 40px rgba(100, 100, 111, 0.15), inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+}
+
+/* Violet-tinted variant for accent sections (now matching main glass perfectly) */
+.echo-glass-violet {
+  background-color: rgba(255, 255, 255, 0.00);
+  backdrop-filter: blur(3px) saturate(140%);
+  -webkit-backdrop-filter: blur(3px) saturate(140%);
+  border-radius: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.5);
+  border-left: 1px solid rgba(255, 255, 255, 0.3);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+html:not(.dark) .echo-glass-violet {
+  background-color: rgba(255, 255, 255, 0.00);
+  backdrop-filter: blur(1px) saturate(150%);
+  -webkit-backdrop-filter: blur(1px) saturate(150%);
+  border-top: 1px solid rgba(255, 255, 255, 0.9);
+  border-left: 1px solid rgba(255, 255, 255, 0.8);
+  border-right: 1px solid rgba(255, 255, 255, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 10px 40px rgba(100, 100, 111, 0.15), inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+}
+
+/* ── Background orbs ──────────────────
+   These blurred blobs behind the UI
+   are what make glassmorphism work —
+   glass needs something behind it to
+   blur. Without these, backdrop-filter
+   has nothing to act on.
+──────────────────────────────────────*/
+.echo-orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(150px);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.75;
+  transition: opacity 0.4s ease;
+}
+
+html:not(.dark) .echo-orb {
+  opacity: 0.80;
+}
+
+.echo-orb-1 {
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, #C084FC, transparent 70%);
+  top: -120px;
+  right: -80px;
+}
+
+.echo-orb-2 {
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(circle, #7C3AED, transparent 70%);
+  bottom: 5%;
+  left: -100px;
+}
+
+.echo-orb-3 {
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, #C084FC, transparent 70%);
+  top: 45%;
+  left: 40%;
+  opacity: 0.45;
+}

@@ -1,0 +1,3 @@
+"""
+Echo project settings package.
+"""

@@ -1,0 +1,265 @@
+<div class="h-full flex flex-col bg-[color:var(--echo-surface)] rounded-xl shadow-lg border border-[color:var(--echo-border)] overflow-hidden" style="max-height: 80vh;" x-data="chatPanel('{{ session.id }}')">
+    
+    <!-- Chat Header -->
+    <div class="p-4 border-b border-[color:var(--echo-border)] flex items-center justify-between shadow-sm bg-white">
+        <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full flex items-center justify-center shadow-sm" style="background-color: var(--echo-deep); color: white;">
+                <span class="font-extrabold text-sm font-sans">E</span>
+            </div>
+            <h3 class="font-bold text-lg" style="color: var(--echo-deep);">Ask ECHO</h3>
+        </div>
+        <span class="text-xs font-semibold px-3 py-1 rounded-full" style="background-color: var(--echo-accent-soft); color: var(--echo-accent);">AI Assistant</span>
+    </div>
+
+    <!-- Messages Container -->
+    <div id="chat-messages" class="flex-1 overflow-y-auto p-4 flex flex-col gap-4 relative" style="background-color: var(--echo-surface);">
+        
+        <!-- Empty State / Starter -->
+        <template x-if="messages.length === 0">
+            <div class="flex flex-col items-center justify-center h-full text-center px-4 animate-fade-in mt-8">
+                <div class="w-16 h-16 rounded-full flex items-center justify-center mb-4 relative wave-avatar shadow-md" style="background-color: var(--echo-deep);">
+                    <span class="text-3xl font-extrabold text-white">E</span>
+                </div>
+                <h4 class="text-xl font-bold mb-2 tracking-tight" style="color: var(--echo-deep);">Ask me anything about this session.</h4>
+                <p class="text-sm font-medium mb-8" style="color: var(--echo-muted);">I've read the whole thing.</p>
+                
+                <div class="flex flex-col gap-3 w-full max-w-sm">
+                    {% for question in session.summary.starter_questions %}
+                    <button @click="setInput('{{ question|escapejs }}')" class="px-4 py-3 text-sm font-semibold text-left rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 border shadow-sm echo-btn" style="background-color: var(--echo-card); border-color: var(--echo-border); color: var(--echo-deep);">
+                        "{{ question }}"
+                    </button>
+                    {% empty %}
+                    <!-- Fallback if no questions -->
+                    {% endfor %}
+                </div>
+            </div>
+        </template>
+
+        <!-- Message Bubbles -->
+        <template x-for="(msg, index) in messages" :key="index">
+            <div class="flex w-full group" :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
+                <div class="max-w-[85%] flex items-end gap-2" :class="msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'">
+                    
+                    <!-- ECHO Avatar for Assistant messages -->
+                    <template x-if="msg.role === 'assistant'">
+                        <div class="w-6 h-6 shrink-0 rounded-full flex items-center justify-center shadow-sm mb-1" style="background-color: var(--echo-deep); color: white;">
+                            <span class="font-bold text-[10px] font-sans">E</span>
+                        </div>
+                    </template>
+                    
+                    <!-- Bubble -->
+                    <div class="relative px-4 py-3 rounded-2xl shadow-sm text-sm transition-all"
+                         :class="msg.role === 'user' ? 'rounded-br-sm text-right' : 'rounded-bl-sm text-left'"
+                         :style="msg.role === 'user' ? 'background-color: var(--echo-accent-soft); color: var(--echo-deep); box-shadow: inset 1px 1px 3px rgba(255,255,255,0.7), inset -1px -1px 3px rgba(0,0,0,0.05);' : 'background-color: var(--echo-card); color: var(--echo-deep); border: 1px solid var(--echo-border);'">
+                        
+                        <p class="whitespace-pre-wrap leading-relaxed font-medium" x-text="msg.content"></p>
+                        
+                        <!-- Streaming Indicator -->
+                        <template x-if="msg.isStreaming">
+                            <span class="inline-block w-2 h-4 ml-1 bg-[color:var(--echo-accent)] animate-pulse align-middle"></span>
+                        </template>
+
+                        <!-- Timestamp on Hover -->
+                        <span class="absolute text-[10px] opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap"
+                              :class="msg.role === 'user' ? 'right-0 -bottom-4' : 'left-0 -bottom-4'"
+                              style="color: var(--echo-muted);" x-text="msg.time"></span>
+                    </div>
+                </div>
+            </div>
+        </template>
+        
+        <!-- Bottom anchor for auto-scrolling -->
+        <div id="chat-anchor" class="h-1"></div>
+    </div>
+
+    <!-- Input Area -->
+    <div class="p-4 border-t border-[color:var(--echo-border)] bg-white">
+        <!-- Error Message -->
+        <div x-show="errorMessage" x-collapse class="mb-3 text-xs font-semibold px-3 py-2 rounded-lg bg-red-50 text-red-600 border border-red-100 shadow-sm" x-text="errorMessage"></div>
+        
+        <div class="relative flex items-end gap-2">
+            <textarea x-model="inputText" x-ref="inputArea" @keydown="handleKeydown" rows="1" placeholder="Type a question... (Enter to send)" class="flex-1 max-h-32 min-h-[46px] py-3 pl-4 pr-12 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 resize-none transition-all shadow-sm" style="background-color: var(--echo-surface); border: 1px solid var(--echo-border); color: var(--echo-deep); --tw-ring-color: var(--echo-accent-soft);"></textarea>
+            
+            <button type="button" @click="sendMessage" :disabled="!inputText.trim() || isWaiting" class="absolute right-2 bottom-2 w-8 h-8 rounded-lg flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[color:var(--echo-accent-soft)]">
+                <svg class="w-5 h-5" style="color: var(--echo-accent);" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+            </button>
+        </div>
+    </div>
+
+</div>
+
+<style>
+    @keyframes wave-animation {
+        0%, 100% { transform: rotate(0deg); }
+        25% { transform: rotate(-10deg); }
+        75% { transform: rotate(10deg); }
+    }
+    .wave-avatar {
+        animation: wave-animation 2.5s ease-in-out infinite;
+    }
+    .animate-fade-in {
+        animation: fadeIn 0.4s ease-out forwards;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    /* Neumorphic button press */
+    .echo-btn:active {
+        box-shadow: inset 3px 3px 8px rgba(167, 139, 250, 0.2), inset -2px -2px 6px rgba(255, 255, 255, 0.9) !important;
+    }
+</style>
+
+<script id="session-messages-data" type="application/json">
+    [
+        {% for msg in session.messages.all %}
+        {
+            "role": "{{ msg.role|escapejs }}",
+            "content": "{{ msg.content|escapejs }}",
+            "time": "{{ msg.created_at|date:'g:i A' }}"
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ]
+</script>
+
+<script>
+    function chatPanel(sessionId) {
+        return {
+            sessionId: sessionId,
+            inputText: '',
+            messages: [],
+            isWaiting: false,
+            errorMessage: '',
+            
+            init() {
+                // Preload existing messages from DB via Django context
+                const dataEl = document.getElementById('session-messages-data');
+                if (dataEl && dataEl.textContent.trim()) {
+                    try {
+                        const initialMessages = JSON.parse(dataEl.textContent);
+                        if (initialMessages.length > 0) {
+                            initialMessages.forEach(msg => {
+                                msg.isStreaming = false;
+                                this.messages.push(msg);
+                            });
+                            this.scrollToBottom();
+                        }
+                    } catch (e) {
+                        console.error('Failed to parse initial messages', e);
+                    }
+                }
+            },
+
+            setInput(text) {
+                this.inputText = text;
+                this.$refs.inputArea.focus();
+            },
+            
+            handleKeydown(e) {
+                // Enter to send, Shift+Enter for newline
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.sendMessage();
+                }
+            },
+            
+            scrollToBottom() {
+                this.$nextTick(() => {
+                    const el = document.getElementById('chat-messages');
+                    el.scrollTop = el.scrollHeight;
+                });
+            },
+
+            sendMessage() {
+                if (!this.inputText.trim() || this.isWaiting) return;
+                
+                this.errorMessage = '';
+                const text = this.inputText.trim();
+                this.inputText = '';
+                
+                // Reset textarea height if any auto-resize logic exists
+                
+                // Add user message to UI
+                this.messages.push({
+                    role: 'user',
+                    content: text,
+                    time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                    isStreaming: false
+                });
+                
+                // Add placeholder for assistant
+                const asstIndex = this.messages.length;
+                this.messages.push({
+                    role: 'assistant',
+                    content: '',
+                    time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                    isStreaming: true
+                });
+                
+                this.scrollToBottom();
+                this.isWaiting = true;
+                
+                // Fetch using fetch + SSE stream reading
+                fetch(`/chat/${this.sessionId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: text })
+                })
+                .then(async response => {
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({error: 'Network error'}));
+                        this.errorMessage = errorData.error || 'Request failed';
+                        this.messages.splice(asstIndex, 1);
+                        this.isWaiting = false;
+                        return;
+                    }
+                    
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder("utf-8");
+                    
+                    let done = false;
+                    while (!done) {
+                        const { value, done: readerDone } = await reader.read();
+                        done = readerDone;
+                        if (value) {
+                            const chunkString = decoder.decode(value, { stream: true });
+                            const lines = chunkString.split('\n');
+                            for (let line of lines) {
+                                if (line.startsWith('data: ')) {
+                                    const dataStr = line.substring(6);
+                                    if (dataStr) {
+                                        try {
+                                            const data = JSON.parse(dataStr);
+                                            if (data.chunk) {
+                                                this.messages[asstIndex].content += data.chunk;
+                                                this.scrollToBottom();
+                                            } else if (data.done) {
+                                                this.messages[asstIndex].isStreaming = false;
+                                                this.isWaiting = false;
+                                            } else if (data.error) {
+                                                this.errorMessage = data.error;
+                                                this.messages[asstIndex].isStreaming = false;
+                                                this.isWaiting = false;
+                                            }
+                                        } catch(e) {}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    this.messages[asstIndex].isStreaming = false;
+                    this.isWaiting = false;
+                })
+                .catch(err => {
+                    this.errorMessage = 'Connection error. Please try again.';
+                    this.messages[asstIndex].isStreaming = false;
+                    this.isWaiting = false;
+                });
+            }
+        }
+    }
+</script>

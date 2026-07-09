@@ -1,0 +1,51 @@
+<span class="inline-block relative" x-data="{ isEditing: false, text: '{{ word.word|escapejs }}' }" id="segment-{{ index }}">
+  <span x-show="!isEditing">
+    <span class="transcript-word cursor-pointer px-0.5 rounded transition-colors hover:bg-[color:var(--echo-accent-soft)] relative inline-block group" 
+          data-start="{{ word.start }}" 
+          data-end="{{ word.end }}"
+          @click="seekTo({{ word.start }})">
+      {{ word.word }}
+      {% if word.is_edited %}
+        <span class="absolute -top-1 -right-1 text-[8px] font-bold" style="color: var(--echo-accent);" title="Edited: original was '{{ word.original_text }}'">*</span>
+      {% endif %}
+      <button @click.stop="isEditing = true; $nextTick(() => { $refs.input.focus(); $refs.input.select(); })" class="absolute -top-2 left-1/2 -translate-x-1/2 bg-white text-gray-500 rounded p-0.5 shadow border hidden group-hover:block z-10 hover:text-[color:var(--echo-accent)]" title="Edit text">
+        <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+      </button>
+    </span>
+  </span>
+
+  <span x-show="isEditing" style="display: none;">
+    <span class="absolute z-50 -top-2 left-0 shadow-xl rounded-full" @click.away="isEditing = false">
+      <form hx-post="{% url 'edit-transcript-segment' session.id index %}" hx-target="#segment-{{ index }}" hx-swap="outerHTML" class="group relative flex items-center h-9 px-3 rounded-full focus-within:rounded-sm transition-[border-radius] duration-500 m-0" @submit="isEditing = false" style="background: var(--echo-surface); min-width: 150px; border: 1px solid var(--echo-border);">
+        
+        <!-- Save button (Left icon) -->
+        <button type="submit" class="text-gray-400 hover:text-[color:var(--echo-accent)] transition-colors focus:outline-none flex-shrink-0" title="Save changes">
+          <svg class="w-4 h-4 mt-[1px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+        </button>
+        
+        <!-- Input Field -->
+        <input type="text" name="text" x-model="text" x-ref="input" placeholder="Type text..." class="flex-1 w-full bg-transparent border-none outline-none text-xs font-medium px-2 peer" style="color: var(--echo-deep);">
+        
+        <!-- Reset/Revert Buttons (Right icons, fade in when typing) -->
+        <div class="flex items-center gap-1.5 flex-shrink-0 opacity-0 peer-[&:not(:placeholder-shown)]:opacity-100 transition-opacity duration-300">
+          {% if word.is_edited %}
+            <button type="button" @click="$refs.revertForm.requestSubmit()" class="text-red-400 hover:text-red-600 focus:outline-none transition-colors" title="Revert to original">
+              <svg class="w-3.5 h-3.5 mt-[1px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path></svg>
+            </button>
+          {% endif %}
+          <button type="button" @click="text = ''; $refs.input.focus();" class="text-gray-400 hover:text-gray-600 focus:outline-none transition-colors" title="Clear text">
+            <svg class="w-3.5 h-3.5 mt-[1px]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+        </div>
+        
+        <!-- Animated Bottom Border -->
+        <div class="absolute bottom-0 left-0 w-full h-[2px] rounded-sm origin-center scale-x-0 transition-transform duration-300 ease-out group-focus-within:scale-x-100 pointer-events-none" style="background-color: var(--echo-accent);"></div>
+      </form>
+      {% if word.is_edited %}
+        <form hx-post="{% url 'edit-transcript-segment' session.id index %}" hx-target="#segment-{{ index }}" hx-swap="outerHTML" x-ref="revertForm" class="hidden">
+          <input type="hidden" name="action" value="revert">
+        </form>
+      {% endif %}
+    </span>
+  </span>
+</span>

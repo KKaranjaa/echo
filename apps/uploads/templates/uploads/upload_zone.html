@@ -1,0 +1,576 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}ECHO — Drop your lecture{% endblock %}
+{% block meta_description %}ECHO — Turn lectures, meetings and voice memos into AI summaries, tasks and flashcards.{% endblock %}
+
+{# Inject echo.css only on this page #}
+{% block head %}
+<link rel="stylesheet" href="{% static 'core/css/echo.css' %}">
+<script src="{% static 'core/js/echo-link.js' %}"></script>
+<style>
+  /* Kill scrollbar on landing page entirely */
+  html, body {
+    overflow: hidden;
+    height: 100%;
+  }
+  /* Make the full layout a flex column filling the viewport */
+  body {
+    display: flex;
+    flex-direction: column;
+  }
+  main#main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- (Global background moved to base.html) -->
+
+<!-- ═══════════════════════════════════════════════════════════════
+     PAGE WRAPPER
+════════════════════════════════════════════════════════════════ -->
+<div class="flex-1 flex flex-col items-center justify-center w-full" style="position:relative;z-index:1;">
+
+  <!-- Tagline -->
+  <p style="font-size:0.78rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--echo-subtext);margin-bottom:clamp(0.75rem, 2vh, 2rem);font-weight:600;opacity:0.8;">
+    Turn lectures into knowledge
+  </p>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       MODE TOGGLE: Upload file | Paste link
+       Lives in its own Alpine scope — completely independent from echoUpload()
+  ══════════════════════════════════════════════════════════════ -->
+  <div x-data="{ mode: 'upload' }" style="display:flex;flex-direction:column;align-items:center;width:min(500px,92vw);">
+    <script>
+      // Force full reload on bfcache restore (back/forward navigation)
+      // so Alpine components reinitialize cleanly instead of showing blank cards.
+      window.addEventListener('pageshow', function(e) { if (e.persisted) window.location.reload(); });
+    </script>
+
+    <!-- Toggle pills -->
+    <div style="
+      display:inline-flex;border-radius:999px;padding:4px;
+      background:rgba(255,255,255,0.06);border:1px solid var(--echo-border);
+      margin-bottom:clamp(0.6rem,1.5vh,1.25rem);gap:4px;
+    ">
+      <button @click="mode='upload'"
+        :style="mode==='upload' ? 'background:rgba(192,132,252,0.07);color:var(--echo-accent);border-color:var(--echo-accent);' : 'background:transparent;color:var(--echo-subtext);border-color:transparent;'"
+        style="
+          padding:6px 20px;border-radius:999px;border:1.5px solid transparent;cursor:pointer;
+          font-size:0.8rem;font-weight:600;transition:all 0.2s ease;
+          user-select:none;-webkit-user-select:none;outline:none;
+        ">Upload file</button>
+      <button @click="mode='link'; $dispatch('reset-link')"
+        :style="mode==='link' ? 'background:rgba(192,132,252,0.07);color:var(--echo-accent);border-color:var(--echo-accent);' : 'background:transparent;color:var(--echo-subtext);border-color:transparent;'"
+        style="
+          padding:6px 20px;border-radius:999px;border:1.5px solid transparent;cursor:pointer;
+          font-size:0.8rem;font-weight:600;transition:all 0.2s ease;
+          user-select:none;-webkit-user-select:none;outline:none;
+        ">Paste link</button>
+    </div>
+
+    <!-- ── Upload file card (existing — zero changes below this line) ──── -->
+    <div x-show="mode==='upload'" style="width:100%;">
+
+  <div
+    id="echo-upload-card"
+    x-data="echoUpload()"
+    x-init="init()"
+    class="echo-upload-card echo-glass"
+    :class="{
+      'is-hovering':   state === 'hovering',
+      'is-processing': ['uploading','processing'].includes(state)
+    }"
+    @dragover.prevent="onDragOver"
+    @dragleave.prevent="onDragLeave"
+    @drop.prevent="onDrop"
+    style="
+      position: relative;
+      width: min(500px, 92vw);
+      min-height: clamp(300px, 46vh, 440px);
+      border-radius: 28px;
+      overflow: hidden;
+      cursor: default;
+    "
+  >
+
+    <!-- The liquid-glass overlay was blocking echo-glass. Removed to ensure the navbar glass effect is visible! -->
+
+    <!-- Violet glow ring (hover / processing) -->
+    <div style="
+      position: absolute; inset: -2px; border-radius: 30px;
+      border: 2px solid var(--echo-accent);
+      box-shadow: 0 0 32px rgba(192,132,252,0.35), inset 0 0 32px rgba(192,132,252,0.08);
+      pointer-events: none;
+      transition: opacity 0.35s ease;
+    " :style="['hovering','uploading','processing'].includes(state) ? 'opacity:1' : 'opacity:0'"></div>
+
+    <!-- ════════════════════════════════
+         STATE 1: IDLE
+    ═══════════════════════════════════ -->
+    <div
+      x-show="state === 'idle'"
+      x-transition:enter.duration.350ms
+      x-transition:leave.duration.200ms
+      style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:min(2.25rem, 4vh);text-align:center;"
+    >
+      <!-- Sonar animation -->
+      <div style="position:relative;width:min(120px, 14vh);height:min(120px, 14vh);margin-bottom:clamp(0.75rem, 2vh, 1.75rem);flex-shrink:0;">
+        <div class="echo-ring echo-ring-1"></div>
+        <div class="echo-ring echo-ring-2"></div>
+        <div class="echo-ring echo-ring-3"></div>
+
+        <!-- Mic icon -->
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+          <div style="
+            width:58px;height:58px;border-radius:50%;
+            background:linear-gradient(135deg,var(--echo-accent),var(--echo-muted));
+            display:flex;align-items:center;justify-content:center;
+            box-shadow:0 8px 32px rgba(192,132,252,0.5);
+          ">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Floating orbit label -->
+        <div class="echo-orbit-label" style="position:absolute;top:-6px;right:-28px;">
+          <span x-text="orbitLabels[orbitIdx]" style="
+            font-size:0.68rem;font-weight:600;letter-spacing:0.03em;
+            padding:3px 10px;border-radius:999px;
+            background:var(--echo-accent);color:white;white-space:nowrap;
+          "></span>
+        </div>
+      </div>
+
+      <p style="font-size:1.05rem;font-weight:600;color:var(--echo-text);margin-bottom:0.4rem;">Drop your lecture here</p>
+      <p style="font-size:0.8rem;color:var(--echo-subtext);margin-bottom:min(1.5rem, 3vh);">MP3, MP4, WAV, FLAC, M4A · up to 1 GB · 200 min</p>
+
+      <!-- Browse button -->
+      <label for="echo-file-input" style="cursor:pointer;">
+        <div style="
+          display:inline-flex;align-items:center;gap:0.4rem;
+          padding:9px 26px;border-radius:999px;
+          border:1.5px solid var(--echo-accent);
+          color:var(--echo-accent);font-size:0.82rem;font-weight:600;
+          background:rgba(192,132,252,0.07);
+          transition:background 0.2s ease;
+        "
+        @mouseenter="$el.style.background='rgba(192,132,252,0.16)'"
+        @mouseleave="$el.style.background='rgba(192,132,252,0.07)'"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Browse files
+        </div>
+      </label>
+      <input id="echo-file-input" type="file" accept=".mp3,.mp4,.mpeg,.mpga,.m4a,.wav,.webm,.ogg,.oga,.flac,.mov,.avi,.mkv" style="display:none;" @change="onFileSelect">
+
+      <!-- Output preview badges -->
+      <div class="echo-glass-violet" style="display:flex;gap:0.35rem;margin-top:clamp(0.75rem, 2vh, 1.5rem);flex-wrap:nowrap;justify-content:center;padding:0.4rem 0.6rem;">
+        <span class="echo-badge">✦ AI Summary</span>
+        <span class="echo-badge">✓ Smart Tasks</span>
+        <span class="echo-badge">⟳ Flashcards</span>
+        <span class="echo-badge">💬 Ask ECHO</span>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════
+         STATE 2: DRAG HOVER
+    ═══════════════════════════════════ -->
+    <div
+      x-show="state === 'hovering'"
+      x-transition.duration.200ms
+      style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;"
+    >
+      <div style="
+        width:76px;height:76px;border-radius:50%;
+        border:2.5px dashed var(--echo-accent);
+        display:flex;align-items:center;justify-content:center;
+        animation:echo-spin 2.4s linear infinite;
+      ">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="var(--echo-accent)" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+      </div>
+      <p style="font-size:1rem;font-weight:600;color:var(--echo-accent);">Release to upload</p>
+    </div>
+
+    <!-- ════════════════════════════════
+         STATE 3: SELECTED
+    ═══════════════════════════════════ -->
+    <div
+      x-show="state === 'selected'"
+      x-transition.duration.300ms
+      style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;text-align:center;"
+    >
+      <div style="
+        width:60px;height:60px;border-radius:50%;
+        background:linear-gradient(135deg,var(--echo-accent),var(--echo-muted));
+        display:flex;align-items:center;justify-content:center;
+        margin-bottom:1.25rem;
+        box-shadow:0 8px 32px rgba(192,132,252,0.4);
+      ">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+          <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+        </svg>
+      </div>
+
+      <p x-text="selectedFile.name" style="font-size:0.9rem;font-weight:700;color:var(--echo-text);margin-bottom:0.2rem;word-break:break-all;max-width:90%;"></p>
+      <p x-text="selectedFile.sizeStr" style="font-size:0.75rem;color:var(--echo-subtext);margin-bottom:0.2rem;"></p>
+      <p x-text="'Est. ' + selectedFile.durationStr" style="font-size:0.75rem;color:var(--echo-accent);margin-bottom:1.75rem;font-weight:500;"></p>
+
+      <div style="display:flex;gap:0.75rem;">
+        <button @click="reset()" style="
+          padding:9px 22px;border-radius:999px;cursor:pointer;
+          border:1.5px solid var(--echo-border);
+          color:var(--echo-subtext);font-size:0.82rem;
+          background:transparent;transition:border-color 0.2s ease;
+        ">Change</button>
+
+        <button @click="startUpload()" style="
+          padding:9px 26px;border-radius:999px;cursor:pointer;border:none;
+          background:linear-gradient(135deg,var(--echo-accent),var(--echo-muted));
+          color:white;font-size:0.82rem;font-weight:600;
+          box-shadow:0 4px 20px rgba(192,132,252,0.4);
+          transition:opacity 0.2s ease;
+        " @mouseenter="$el.style.opacity='0.88'" @mouseleave="$el.style.opacity='1'">
+          Process with ECHO →
+        </button>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════
+         STATE 4: UPLOADING
+    ═══════════════════════════════════ -->
+    <div
+      x-show="state === 'uploading'"
+      x-transition:enter.duration.350ms
+      x-transition:leave.duration.200ms
+      style="position:absolute;inset:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0.5rem;"
+    >
+      <div style="position:relative;width:96px;height:96px;margin-bottom:1rem;">
+        <svg width="96" height="96" style="transform:rotate(-90deg);">
+          <circle cx="48" cy="48" r="42" fill="none" stroke="rgba(192,132,252,0.15)" stroke-width="5"/>
+          <circle cx="48" cy="48" r="42" fill="none" stroke="var(--echo-accent)" stroke-width="5"
+            stroke-linecap="round"
+            stroke-dasharray="264"
+            :stroke-dashoffset="264 - (264 * uploadProgress / 100)"
+            style="transition:stroke-dashoffset 0.3s ease;"/>
+        </svg>
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+          <span x-text="uploadProgress + '%'" style="font-size:1.05rem;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--echo-accent);"></span>
+        </div>
+      </div>
+      <p style="font-size:0.88rem;font-weight:600;color:var(--echo-text);">Uploading your lecture…</p>
+      <p x-text="uploadETA" style="font-size:0.72rem;color:var(--echo-subtext);"></p>
+    </div>
+
+    <!-- ════════════════════════════════
+         STATE 5: PROCESSING (pipeline)
+    ═══════════════════════════════════ -->
+    <div x-show="state === 'processing'" x-transition:enter.duration.350ms="" x-transition:leave.duration.200ms="" style="position: absolute; inset: 0px; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: clamp(1rem, 3vh, 2.5rem);">
+      <!-- Ambient waveform behind the pipeline -->
+      <canvas class="echo-wave-canvas" style="position:absolute;inset:0;width:100%;height:100%;opacity:0.07;pointer-events:none;"></canvas>
+
+      <p style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--echo-subtext);margin-bottom:clamp(1rem, 3vh, 2rem);font-weight:600;position:relative;">Processing your lecture</p>
+
+      <!-- 4-step vertical pipeline -->
+      <div style="display:flex;flex-direction:column;gap:0;width:100%;max-width:260px;position:relative;">
+        <template x-for="(step, i) in pipelineSteps" :key="i">
+          <div style="display:flex;flex-direction:column;align-items:flex-start;">
+            <div style="display:flex;align-items:center;gap:1rem;width:100%;">
+
+              <!-- Node -->
+              <div :class="{
+                'echo-node-active':  step.status === 'active',
+                'echo-node-done':    step.status === 'done',
+                'echo-node-waiting': step.status === 'waiting'
+              }" style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.4s ease;">
+                <template x-if="step.status === 'done'">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                </template>
+                <template x-if="step.status === 'active'">
+                  <div style="width:13px;height:13px;border:2px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:echo-spin 0.8s linear infinite;"></div>
+                </template>
+                <template x-if="step.status === 'waiting'">
+                  <span x-text="i+1" style="font-size:0.72rem;font-weight:700;font-family:'JetBrains Mono',monospace;"></span>
+                </template>
+              </div>
+
+              <!-- Label -->
+              <div>
+                <p x-text="step.label" :style="step.status === 'waiting' ? 'opacity:0.38' : 'opacity:1'" style="font-size:0.88rem;font-weight:600;color:var(--echo-text);transition:opacity 0.3s;"></p>
+                <p x-text="step.sub" style="font-size:0.7rem;color:var(--echo-subtext);margin-top:1px;"></p>
+              </div>
+            </div>
+
+            <!-- Connector line -->
+            <template x-if="i < pipelineSteps.length - 1">
+              <div style="margin-left:14px;width:2px;height:clamp(12px, 2vh, 26px);background:linear-gradient(to bottom,var(--echo-accent),rgba(192,132,252,0.2));opacity:0.35;"></div>
+            </template>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════
+         STATE 6: PREVIEW (results reveal)
+    ═══════════════════════════════════ -->
+    <div
+      x-show="state === 'preview'"
+      x-transition.duration.400ms
+      style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;overflow:hidden;"
+    >
+      <p style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--echo-accent);font-weight:700;margin-bottom:1.25rem;">Your lecture is ready ✦</p>
+
+      <!-- Split reveal: raw waveform | ECHO results -->
+      <div class="echo-glass" style="width:100%;display:grid;grid-template-columns:1fr 1px 1fr;border-radius:14px;overflow:hidden;">
+
+        <!-- Left: raw audio -->
+        <div style="padding:1.1rem;background:rgba(0,0,0,0.04);">
+          <p style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--echo-subtext);margin-bottom:0.6rem;">Audio</p>
+          <canvas class="echo-raw-wave" width="160" height="44" style="width:100%;opacity:0.4;filter:blur(1px);"></canvas>
+        </div>
+
+        <!-- Divider -->
+        <div style="background:var(--echo-accent);opacity:0.35;"></div>
+
+        <!-- Right: ECHO results -->
+        <div style="padding:1.1rem;">
+          <p style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--echo-accent);margin-bottom:0.6rem;font-weight:700;">ECHO Summary</p>
+
+          <div style="margin-bottom:0.9rem;">
+            <div style="height:6px;border-radius:4px;background:var(--echo-accent);opacity:0;margin-bottom:5px;animation:echo-line-appear 0.4s 0.2s forwards;width:90%;"></div>
+            <div style="height:6px;border-radius:4px;background:var(--echo-accent);opacity:0;margin-bottom:5px;animation:echo-line-appear 0.4s 0.5s forwards;width:74%;"></div>
+            <div style="height:6px;border-radius:4px;background:var(--echo-accent);opacity:0;animation:echo-line-appear 0.4s 0.8s forwards;width:58%;"></div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:0.4rem;margin-bottom:0.45rem;opacity:0;animation:echo-fade-up 0.4s 1.1s forwards;">
+            <div style="width:13px;height:13px;border-radius:3px;border:1.5px solid var(--echo-accent);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="var(--echo-accent)" stroke-width="3" style="opacity:0;animation:echo-check-pop 0.3s 1.7s forwards;"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <span style="font-size:0.65rem;color:var(--echo-subtext);">Review lecture notes</span>
+          </div>
+
+          <div style="opacity:0;animation:echo-fade-up 0.4s 1.5s forwards;">
+            <div style="
+              height:30px;border-radius:5px;
+              background:linear-gradient(135deg,rgba(192,132,252,0.18),rgba(124,58,237,0.1));
+              border:1px solid rgba(192,132,252,0.28);
+              display:flex;align-items:center;justify-content:center;
+              font-size:0.62rem;color:var(--echo-accent);font-weight:600;
+              animation:echo-flip 0.6s 2.1s ease;
+            ">1 flashcard generated ✦</div>
+          </div>
+        </div>
+      </div>
+
+      <p style="font-size:0.72rem;color:var(--echo-subtext);margin-top:1rem;">Redirecting to your session…</p>
+      <div style="width:110px;height:2px;border-radius:2px;background:rgba(192,132,252,0.14);margin-top:0.45rem;overflow:hidden;">
+        <div style="height:100%;background:var(--echo-accent);animation:echo-progress-bar 2.8s linear forwards;"></div>
+      </div>
+    </div>
+
+  </div>
+  <!-- /echo-upload-card -->
+
+    </div><!-- /upload file card wrapper -->
+
+    <!-- ── Paste Link card (independent echoLink() component) ──────────── -->
+    <div x-show="mode==='link'" x-cloak style="width:100%;"
+         x-data="echoLink()" x-init="init()">
+
+      <div class="echo-upload-card echo-glass" style="
+        position:relative;width:100%;
+        min-height:clamp(400px,50vh,500px);
+        border-radius:28px;overflow:hidden;cursor:default;
+      ">
+        <!-- Glow ring — shows during active states -->
+        <div style="
+          position:absolute;inset:-2px;border-radius:30px;
+          border:2px solid var(--echo-accent);
+          box-shadow:0 0 32px rgba(192,132,252,0.35),inset 0 0 32px rgba(192,132,252,0.08);
+          pointer-events:none;transition:opacity 0.35s ease;
+        " :style="['validating','fetching_metadata','downloading','processing'].includes(state) ? 'opacity:1' : 'opacity:0'"></div>
+
+        <!-- STATE: idle / input -->
+        <div x-show="state === 'idle' || state === 'error'"
+             style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:min(2rem,4vh);gap:0.85rem;">
+
+          <div style="
+            width:54px;height:54px;border-radius:50%;
+            background:linear-gradient(135deg,var(--echo-accent),var(--echo-muted));
+            display:flex;align-items:center;justify-content:center;
+            box-shadow:0 8px 32px rgba(192,132,252,0.4);flex-shrink:0;
+          ">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          </div>
+
+          <p style="font-size:1rem;font-weight:600;color:var(--echo-text);margin:0;">Paste a media link</p>
+
+          <!-- URL input -->
+          <div style="width:100%;position:relative;margin-bottom:0.75rem;">
+            <input
+              type="url" x-model="url"
+              @input="onUrlInput()"
+              @keydown.enter.prevent="submit()"
+              placeholder="YouTube, Google Drive, Dropbox, Vimeo, or any direct media link…"
+              style="
+                width:100%;padding:10px 14px;border-radius:12px;
+                background:rgba(255,255,255,0.07);border:1.5px solid var(--echo-border);
+                color:var(--echo-text);font-size:0.82rem;outline:none;
+                transition:border-color 0.2s;box-sizing:border-box;
+              "
+              @focus="$el.style.borderColor='var(--echo-accent)'"
+              @blur="$el.style.borderColor='var(--echo-border)'"
+            >
+            <!-- Platform detected label -->
+            <p x-show="platformLabel && !platformWarning"
+               x-text="platformLabel"
+               style="margin:4px 0 0 2px;font-size:0.72rem;font-weight:600;color:var(--echo-accent);"></p>
+            <!-- Platform warning -->
+            <p x-show="platformWarning"
+               x-text="platformWarning"
+               style="margin:4px 0 0 2px;font-size:0.72rem;font-weight:600;color:#f59e0b;"></p>
+          </div>
+
+          <!-- Optional title -->
+          <input
+            type="text" x-model="title"
+            @keydown.enter.prevent="submit()"
+            placeholder="Title (optional)"
+            style="
+              width:100%;padding:8px 14px;border-radius:12px;
+              background:rgba(255,255,255,0.07);border:1.5px solid var(--echo-border);
+              color:var(--echo-text);font-size:0.82rem;outline:none;box-sizing:border-box;
+            "
+            @focus="$el.style.borderColor='var(--echo-accent)'"
+            @blur="$el.style.borderColor='var(--echo-border)'"
+          >
+
+          <!-- Error message -->
+          <p x-show="errorMsg" x-text="errorMsg"
+             style="font-size:0.78rem;color:#ef4444;font-weight:500;text-align:center;margin:0;"></p>
+
+          <!-- Submit -->
+          <div style="width:100%;display:flex;justify-content:center;margin-top:0.5rem;">
+            <button @click="submit()" :disabled="!!platformWarning" style="
+              display:inline-flex;align-items:center;justify-content:center;gap:0.4rem;
+              padding:9px 26px;border-radius:999px;
+              font-size:0.82rem;font-weight:600;
+              transition:all 0.3s ease;
+            "
+            :style="(!url.trim()) 
+              ? 'border:1.5px solid var(--echo-accent); background:rgba(192,132,252,0.07); color:var(--echo-accent); cursor:pointer; box-shadow:none; opacity:1;' 
+              : (!!platformWarning 
+                ? 'border:1.5px solid var(--echo-accent); background:rgba(192,132,252,0.07); color:var(--echo-accent); opacity:0.6; cursor:not-allowed; box-shadow:none;' 
+                : 'border:1.5px solid transparent; background:linear-gradient(135deg,var(--echo-accent),var(--echo-muted)); color:white; cursor:pointer; box-shadow:0 4px 20px rgba(192,132,252,0.4); opacity:1;')"
+            @mouseenter="if(url.trim()&&!platformWarning) $el.style.opacity='0.88'"
+            @mouseleave="if(url.trim()&&!platformWarning) $el.style.opacity='1'">
+              Process link →
+            </button>
+          </div>
+        </div>
+
+        <!-- STATE: validating (brief) -->
+        <div x-show="state === 'validating'"
+             style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:0.5rem;">
+          <div style="position:relative;width:96px;height:96px;margin-bottom:1rem;">
+            <svg width="96" height="96" style="transform:rotate(-90deg);">
+              <circle cx="48" cy="48" r="42" fill="none" stroke="rgba(192,132,252,0.15)" stroke-width="5"/>
+              <circle cx="48" cy="48" r="42" fill="none" stroke="var(--echo-accent)" stroke-width="5"
+                stroke-linecap="round"
+                stroke-dasharray="264"
+                :stroke-dashoffset="264 - (264 * linkProgress / 100)"
+                style="transition:stroke-dashoffset 0.3s ease;"/>
+            </svg>
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+              <span x-text="Math.floor(linkProgress) + '%'" style="font-size:1.05rem;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--echo-accent);"></span>
+            </div>
+          </div>
+          <p style="font-size:0.88rem;font-weight:600;color:var(--echo-text);">Checking link…</p>
+        </div>
+
+        <!-- STATE: fetching_metadata / downloading / processing (pipeline) -->
+        <div x-show="['fetching_metadata','downloading','processing'].includes(state)"
+             style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:clamp(1rem,3vh,2.5rem);">
+          <canvas class="echo-wave-canvas" style="position:absolute;inset:0;width:100%;height:100%;opacity:0.07;pointer-events:none;"></canvas>
+
+          <p style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--echo-subtext);margin-bottom:clamp(1rem,3vh,2rem);font-weight:600;position:relative;">
+            Processing your link
+          </p>
+
+          <div style="display:flex;flex-direction:column;gap:0;width:100%;max-width:260px;position:relative;">
+            <template x-for="(step, i) in pipelineSteps" :key="i">
+              <div style="display:flex;flex-direction:column;align-items:flex-start;">
+                <div style="display:flex;align-items:center;gap:1rem;width:100%;">
+                  <div :class="{
+                    'echo-node-active':  step.status === 'active',
+                    'echo-node-done':    step.status === 'done',
+                    'echo-node-waiting': step.status === 'waiting'
+                  }" style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.4s ease;">
+                    <template x-if="step.status === 'done'">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                    </template>
+                    <template x-if="step.status === 'active'">
+                      <div style="width:13px;height:13px;border:2px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:echo-spin 0.8s linear infinite;"></div>
+                    </template>
+                    <template x-if="step.status === 'waiting'">
+                      <span x-text="i+1" style="font-size:0.72rem;font-weight:700;font-family:'JetBrains Mono',monospace;"></span>
+                    </template>
+                  </div>
+                  <div>
+                    <p x-text="step.label" :style="step.status === 'waiting' ? 'opacity:0.38' : 'opacity:1'" style="font-size:0.88rem;font-weight:600;color:var(--echo-text);transition:opacity 0.3s;"></p>
+                    <p x-text="step.sub" style="font-size:0.7rem;color:var(--echo-subtext);margin-top:1px;"></p>
+                  </div>
+                </div>
+                <template x-if="i < pipelineSteps.length - 1">
+                  <div style="margin-left:14px;width:2px;height:clamp(12px,2vh,26px);background:linear-gradient(to bottom,var(--echo-accent),rgba(192,132,252,0.2));opacity:0.35;"></div>
+                </template>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- STATE: preview -->
+        <div x-show="state === 'preview'"
+             style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;">
+          <p style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--echo-accent);font-weight:700;margin-bottom:1rem;">Your content is ready ✦</p>
+          <div style="width:100%;max-width:240px;text-align:center;">
+            <div style="height:6px;border-radius:4px;background:var(--echo-accent);opacity:0;margin-bottom:5px;animation:echo-line-appear 0.4s 0.2s forwards;width:90%;"></div>
+            <div style="height:6px;border-radius:4px;background:var(--echo-accent);opacity:0;margin-bottom:5px;animation:echo-line-appear 0.4s 0.5s forwards;width:72%;"></div>
+            <div style="height:6px;border-radius:4px;background:var(--echo-accent);opacity:0;animation:echo-line-appear 0.4s 0.8s forwards;width:55%;"></div>
+          </div>
+          <p style="font-size:0.72rem;color:var(--echo-subtext);margin-top:1.25rem;">Redirecting to your session…</p>
+          <div style="width:110px;height:2px;border-radius:2px;background:rgba(192,132,252,0.14);margin-top:0.45rem;overflow:hidden;">
+            <div style="height:100%;background:var(--echo-accent);animation:echo-progress-bar 2.8s linear forwards;"></div>
+          </div>
+        </div>
+
+      </div><!-- /link card -->
+    </div><!-- /paste link wrapper -->
+
+  </div><!-- /mode toggle Alpine scope -->
+
+  <!-- Privacy note -->
+  <p style="margin-top:clamp(0.5rem, 1.5vh, 1.5rem);font-size:0.68rem;color:var(--echo-subtext);opacity:0.55;text-align:center;">
+    Files are processed privately and never stored beyond your session.
+  </p>
+
+</div>
+<!-- /page wrapper -->
+
+
+{% endblock content %}

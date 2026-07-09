@@ -1,0 +1,59 @@
+<div class="max-w-2xl mx-auto py-4" x-data="tasksTab()">
+  
+  {% if not session.summary.action_items %}
+  <!-- Empty State -->
+  <div class="echo-card w-full p-12 flex flex-col items-center justify-center text-center mt-12 max-w-xl mx-auto">
+    <div class="w-16 h-16 rounded-full flex items-center justify-center mb-6 shadow-md" style="background-color: rgba(16, 185, 129, 0.1); color: var(--echo-success);">
+      <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" /></svg>
+    </div>
+    <h3 class="text-lg font-bold mb-2" style="color: var(--echo-deep);">No action items found</h3>
+    <p class="text-sm font-medium mb-6" style="color: var(--echo-subtext);">
+      ECHO couldn't identify any explicit next steps, tasks, or assignments in this lecture recording. This is normal for pure lecture or conceptual study sessions.
+    </p>
+    <div class="p-4 rounded-xl border border-[color:var(--echo-border)] bg-amber-50/50 text-left w-full">
+      <h4 class="text-xs font-bold uppercase tracking-wider mb-2 text-amber-800">What to do next:</h4>
+      <ul class="text-xs font-semibold text-amber-950 space-y-1.5 list-disc pl-4">
+        <li>Head to the <strong>Ask ECHO</strong> tab and ask: <em>"Can you extract a todo list or suggest action items based on this audio?"</em></li>
+        <li>Upload a more task-focused recording, such as a project coordination or study planning session.</li>
+      </ul>
+    </div>
+  </div>
+  {% else %}
+  
+  <h3 class="text-sm font-bold uppercase tracking-widest mb-6" style="color: var(--echo-muted);">Action Items</h3>
+  
+  <div class="echo-glass flex flex-col gap-3 p-4">
+
+    {% for task in session.summary.action_items %}
+    <div class="echo-card p-4 flex items-center gap-4 cursor-pointer transition-transform duration-200"
+         :class="tasks[{{ forloop.counter0 }}] ? 'scale-[0.98] opacity-60' : 'hover:scale-[1.01]'"
+         @click="tasks[{{ forloop.counter0 }}] = !tasks[{{ forloop.counter0 }}]">
+      
+      <!-- Checkbox -->
+      <div class="w-6 h-6 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors"
+           :class="tasks[{{ forloop.counter0 }}] ? 'border-[color:var(--echo-success)] bg-[color:var(--echo-success)] text-white' : 'border-[color:var(--echo-border)] bg-transparent text-transparent'">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>
+      </div>
+
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-bold transition-all" 
+           :class="tasks[{{ forloop.counter0 }}] ? 'line-through text-[color:var(--echo-muted)]' : 'text-[color:var(--echo-deep)]'">
+          {{ task.text }}
+        </p>
+        {% if task.assignee_hint %}
+        <p class="text-xs font-semibold mt-1" style="color: var(--echo-accent);">@{{ task.assignee_hint }}</p>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+<script>
+  function tasksTab() {
+    return {
+      tasks: Array(Number("{{ session.summary.action_items|length|default:0 }}")).fill(false)
+    }
+  }
+</script>

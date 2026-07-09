@@ -1,0 +1,318 @@
+<div class="max-w-3xl mx-auto flex flex-col h-full" x-data="transcriptTab()">
+  
+  <!-- Search Header -->
+  <div class="echo-card sticky top-0 z-10 p-4 mb-4" style="border-radius: 12px; margin-top: 1rem;">
+    <div class="relative">
+      <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+        <svg class="w-5 h-5" style="color: var(--echo-muted);" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+      </div>
+      <input type="text" 
+             x-model="searchQuery" 
+             @input.debounce.300ms="performSearch"
+             class="w-full pl-10 pr-4 py-3 rounded-xl text-sm font-medium focus:outline-none transition-shadow shadow-sm bg-white"
+             style="color: var(--echo-deep); --tw-ring-color: var(--echo-accent-soft);"
+             placeholder="Search transcript...">
+    </div>
+    
+    <!-- Typo suggestion -->
+    <div x-show="suggestion" x-collapse class="mt-2 text-xs font-semibold px-2" style="color: var(--echo-muted);">
+      Did you mean <button @click="searchQuery = suggestion; performSearch()" class="hover:underline cursor-pointer" style="color: var(--echo-accent);" x-text="`'${suggestion}'`"></button>?
+    </div>
+    <div x-show="noResults" x-collapse class="mt-2 text-xs font-semibold px-2" style="color: var(--echo-error);">
+      No matches. Try a different word or phrase.
+    </div>
+  </div>
+
+  <!-- Transcript Content -->
+  <div class="echo-card p-6 rounded-2xl flex-1 overflow-y-auto pb-12 pr-4 font-mono text-sm leading-loose mt-4" style="color: var(--echo-deep);" id="transcript-container">
+    {% if session.transcript.word_timestamps %}
+      <div class="space-y-6" id="transcript-chunks-container">
+        <p>
+          {% spaceless %}
+          {% for chunk in session.transcript.get_chunked_segments %}
+            <span class="transcript-chunk" 
+                  data-chunk-index="{{ chunk.index }}" 
+                  data-chunk-start="{{ chunk.start }}" 
+                  data-chunk-end="{{ chunk.end }}"
+                  data-rendered="{% if forloop.first %}true{% else %}false{% endif %}"
+                  data-words="{{ chunk.words_json|escape }}">
+              {% if forloop.first %}
+                {% for word in chunk.words %}
+                  {% include "sessions/partials/_transcript_word.html" with word=word index=word.original_index session=session %}&#32;
+                {% endfor %}
+              {% endif %}
+            </span>
+          {% endfor %}
+          {% endspaceless %}
+        </p>
+      </div>
+    {% else %}
+      <p class="whitespace-pre-wrap font-sans font-medium" style="color: var(--echo-muted);">{{ session.transcript.raw_text }}</p>
+    {% endif %}
+  </div>
+
+</div>
+
+<script>
+  function transcriptTab() {
+    return {
+      searchQuery: '',
+      suggestion: '',
+      noResults: false,
+      currentTime: 0, 
+      activeChunkIndex: 0,
+      sessionId: '{{ session.id }}',
+      observer: null,
+      
+      init() {
+        this.setupIntersectionObserver();
+        
+        window.addEventListener('audiotimeupdate', (e) => { 
+          this.currentTime = e.detail.time; 
+          this.syncHighlight();
+        });
+
+        // Intercept HTMX swaps to update stale JSON data
+        document.body.addEventListener('htmx:afterSwap', (e) => {
+          if (e.target.id && e.target.id.startsWith('segment-')) {
+            const newEl = document.getElementById(e.target.id);
+            const chunkEl = newEl.closest('.transcript-chunk');
+            if (chunkEl) {
+              const words = JSON.parse(chunkEl.getAttribute('data-words') || '[]');
+              const wordIndex = parseInt(e.target.id.split('-')[1]);
+              const wordObj = words.find(w => w.original_index === wordIndex);
+              
+              if (wordObj) {
+                const input = newEl.querySelector('input[name="text"]');
+                const isEdited = newEl.querySelector('form[x-ref="revertForm"]') !== null;
+                
+                if (input) {
+                  wordObj.word = input.value;
+                  wordObj.is_edited = isEdited;
+                  chunkEl.setAttribute('data-words', JSON.stringify(words));
+                }
+              }
+            }
+          }
+        });
+      },
+
+      setupIntersectionObserver() {
+        const options = {
+          root: document.getElementById('transcript-container'),
+          rootMargin: '200px',
+          threshold: 0
+        };
+
+        this.observer = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            const chunkEl = entry.target;
+            const index = parseInt(chunkEl.dataset.chunkIndex);
+            
+            if (entry.isIntersecting) {
+              this.renderChunk(chunkEl);
+              // ensure neighbors are rendered
+              this.renderNeighborChunks(index);
+            } else {
+              // Only unrender if it's far away (more than 2 chunks from active)
+              if (Math.abs(index - this.activeChunkIndex) > 2) {
+                this.unrenderChunk(chunkEl);
+              }
+            }
+          });
+        }, options);
+
+        document.querySelectorAll('.transcript-chunk').forEach(el => {
+          this.observer.observe(el);
+        });
+      },
+
+      renderNeighborChunks(centerIndex) {
+        document.querySelectorAll('.transcript-chunk').forEach(el => {
+          const index = parseInt(el.dataset.chunkIndex);
+          if (Math.abs(index - centerIndex) <= 1) {
+            this.renderChunk(el);
+          }
+        });
+      },
+
+      renderChunk(chunkEl) {
+        if (chunkEl.dataset.rendered === 'true') return;
+        
+        const words = JSON.parse(chunkEl.getAttribute('data-words') || '[]');
+        let html = '';
+        words.forEach(word => {
+          html += this.generateWordHTML(word) + ' ';
+        });
+        
+        chunkEl.innerHTML = html;
+        chunkEl.dataset.rendered = 'true';
+        
+        // Let Alpine initialize the new x-data elements
+        if (window.Alpine) {
+          window.Alpine.initTree(chunkEl);
+        }
+        if (window.htmx) {
+          window.htmx.process(chunkEl);
+        }
+      },
+
+      unrenderChunk(chunkEl) {
+        if (chunkEl.dataset.rendered === 'false') return;
+        // Keep the active chunk and its neighbors rendered
+        const index = parseInt(chunkEl.dataset.chunkIndex);
+        if (Math.abs(index - this.activeChunkIndex) <= 1) return;
+        
+        chunkEl.innerHTML = '';
+        chunkEl.dataset.rendered = 'false';
+      },
+
+      syncHighlight() {
+        // Find active chunk
+        const chunks = Array.from(document.querySelectorAll('.transcript-chunk'));
+        let activeChunk = chunks.find(chunkEl => {
+          const start = parseFloat(chunkEl.dataset.chunkStart);
+          const end = parseFloat(chunkEl.dataset.chunkEnd);
+          return this.currentTime >= start && this.currentTime < end;
+        });
+
+        if (!activeChunk) {
+            // Edge case: end of file or beyond
+            activeChunk = chunks[chunks.length - 1];
+        }
+
+        if (activeChunk) {
+          const newActiveIndex = parseInt(activeChunk.dataset.chunkIndex);
+          this.activeChunkIndex = newActiveIndex;
+          
+          if (activeChunk.dataset.rendered === 'false') {
+            this.renderChunk(activeChunk);
+            this.renderNeighborChunks(newActiveIndex);
+          }
+
+          // Forward advancing pointer for words within the rendered active chunk
+          const words = Array.from(activeChunk.querySelectorAll('.transcript-word'));
+          let activeWord = null;
+          
+          for (let i = 0; i < words.length; i++) {
+            const start = parseFloat(words[i].dataset.start);
+            const end = parseFloat(words[i].dataset.end);
+            if (this.currentTime >= start && this.currentTime < end) {
+              activeWord = words[i];
+              break;
+            }
+          }
+
+          if (activeWord) {
+            const prevActive = document.querySelector('.transcript-word.word-active');
+            if (prevActive !== activeWord) {
+              if (prevActive) {
+                prevActive.classList.remove('word-active');
+                prevActive.style.backgroundColor = 'transparent';
+              }
+              activeWord.classList.add('word-active');
+              activeWord.style.backgroundColor = 'var(--echo-accent-soft)';
+              activeWord.style.boxShadow = '0 0 8px var(--echo-accent-soft)';
+              
+              // Scroll into view if offscreen
+              const container = document.getElementById('transcript-container');
+              const wordRect = activeWord.getBoundingClientRect();
+              const containerRect = container.getBoundingClientRect();
+              
+              if (wordRect.top < containerRect.top || wordRect.bottom > containerRect.bottom) {
+                activeWord.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+            }
+          }
+        }
+      },
+
+      generateWordHTML(word) {
+        const index = word.original_index;
+        const wordText = word.word;
+        const wordEscaped = wordText.replace(/'/g, "\\u0027").replace(/"/g, "\\u0022");
+        const start = word.start;
+        const end = word.end;
+        const isEdited = word.is_edited;
+        const originalText = word.original_text || '';
+        
+        let editedIndicator = '';
+        let revertButton = '';
+        let revertForm = '';
+        
+        if (isEdited) {
+          editedIndicator = `<span class="absolute -top-1 -right-1 text-[8px] font-bold" style="color: var(--echo-accent);" title="Edited: original was '${originalText}'">*</span>`;
+          revertButton = `
+            <button type="button" @click="$refs.revertForm.requestSubmit()" class="p-1 rounded hover:bg-red-100 text-red-500 transition-colors" title="Revert to original">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path></svg>
+            </button>`;
+          revertForm = `
+            <form hx-post="/api/sessions/${this.sessionId}/segments/${index}/edit/" hx-target="#segment-${index}" hx-swap="outerHTML" x-ref="revertForm" class="hidden">
+              <input type="hidden" name="action" value="revert">
+            </form>`;
+        }
+
+        return `
+      <span class="inline-block relative" x-data="{ isEditing: false, text: '${wordEscaped}' }" id="segment-${index}">
+        <span x-show="!isEditing">
+          <span class="transcript-word cursor-pointer px-0.5 rounded transition-colors hover:bg-[color:var(--echo-accent-soft)] relative inline-block group" 
+                data-start="${start}" 
+                data-end="${end}"
+                @click="seekTo(${start})">
+            ${wordText}
+            ${editedIndicator}
+            <button @click.stop="isEditing = true; $nextTick(() => { $refs.input.focus(); $refs.input.select(); })" class="absolute -top-2 left-1/2 -translate-x-1/2 bg-white text-gray-500 rounded p-0.5 shadow border hidden group-hover:block z-10 hover:text-[color:var(--echo-accent)]" title="Edit text">
+              <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+            </button>
+          </span>
+        </span>
+
+        <span x-show="isEditing" style="display: none;">
+          <span class="absolute z-50 -top-2 left-0 echo-glass p-1.5 rounded-lg flex items-center gap-1 shadow-lg" @click.away="isEditing = false">
+            <form hx-post="/api/sessions/${this.sessionId}/segments/${index}/edit/" hx-target="#segment-${index}" hx-swap="outerHTML" class="flex items-center gap-1 m-0" @submit="isEditing = false">
+              <input type="text" name="text" x-model="text" x-ref="input" class="text-xs px-2 py-1 rounded bg-white bg-opacity-50 focus:outline-none focus:ring-1 border border-transparent focus:border-[color:var(--echo-accent)]" style="color: var(--echo-deep); width: auto; min-width: 60px;">
+              <button type="submit" class="p-1 rounded hover:bg-[color:var(--echo-accent-soft)] text-[color:var(--echo-accent)] transition-colors" title="Save">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+              </button>
+              ${revertButton}
+              <button type="button" @click="isEditing = false" class="p-1 rounded hover:bg-gray-200 text-gray-500 transition-colors" title="Cancel">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </button>
+            </form>
+            ${revertForm}
+          </span>
+        </span>
+      </span>`;
+      },
+
+      performSearch() {
+        this.suggestion = '';
+        this.noResults = false;
+        const query = this.searchQuery.trim().toLowerCase();
+        
+        if (!query) {
+          document.querySelectorAll('.transcript-word').forEach(el => {
+            el.style.backgroundColor = el.classList.contains('word-active') ? 'var(--echo-accent-soft)' : 'transparent';
+          });
+          return;
+        }
+        
+        let found = false;
+        // In chunk-rendered mode, we can only highlight rendered words currently
+        document.querySelectorAll('.transcript-word').forEach(el => {
+           if (el.textContent.toLowerCase().includes(query)) {
+              el.style.backgroundColor = 'var(--echo-amber)';
+              found = true;
+           } else {
+              el.style.backgroundColor = el.classList.contains('word-active') ? 'var(--echo-accent-soft)' : 'transparent';
+           }
+        });
+        if(!found) this.noResults = true;
+      },
+      
+      seekTo(time) {
+        window.dispatchEvent(new CustomEvent('seekaudio', { detail: { time } }));
+      }
+    }
+  }
+</script>

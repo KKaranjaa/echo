@@ -1,0 +1,409 @@
+{% extends "base.html" %}
+
+{% block title %}Chat — {{ session.original_filename|truncatechars:40 }}{% endblock %}
+{% block meta_description %}Ask ECHO anything about your uploaded lecture.{% endblock %}
+
+{% block content %}
+<div class="w-11/12 md:max-w-2xl lg:max-w-3xl xl:max-w-4xl mx-auto flex flex-col h-[calc(100vh-8rem)] -mt-6 -mb-6" x-data>
+
+  {# ── Back link ─────────────────────────────────────────────────────────────── #}
+  <div class="mb-3 animate-slide-in shrink-0 flex items-center justify-between">
+    <h1 class="text-lg sm:text-xl font-bold tracking-tight" style="color: var(--echo-deep);">
+      {{ session.original_filename|truncatechars:50 }}
+    </h1>
+    <a href="/results/{{ session.id }}/"
+       class="inline-flex items-center gap-1 sm:gap-2 text-sm font-medium hover:opacity-80 transition-opacity"
+       style="color: var(--echo-accent);">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+      </svg>
+      <span class="hidden sm:inline">Back to results</span>
+      <span class="sm:hidden">Back</span>
+    </a>
+  </div>
+
+  {# ── Chat wrapper ──────────────────────────────────────────────────────────── #}
+  <div class="flex-1 min-h-[350px] flex flex-col rounded-2xl shadow-xl overflow-hidden relative liquid-glass"
+       x-data="chatPanel('{{ session.id }}', '{{ initial_question|escapejs }}')">
+
+    {# Header #}
+    <div class="p-3 sm:p-4 border-b flex items-center justify-between"
+         style="border-color: var(--liquid-border); border-radius: 0;">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-full flex items-center justify-center shadow"
+             style="background: var(--echo-deep); color: var(--echo-surface);">
+          <span class="font-extrabold text-sm">E</span>
+        </div>
+        <div>
+          <h2 class="font-bold text-base" style="color: var(--echo-deep);">Ask ECHO</h2>
+          <p class="text-xs" style="color: var(--echo-muted);">AI assistant for this session</p>
+        </div>
+      </div>
+      <span class="text-xs font-semibold px-3 py-1 rounded-full"
+            style="background: var(--echo-accent-soft); color: var(--echo-accent);">AI Assistant</span>
+    </div>
+
+    {# Scroll to top button #}
+    <div @click="_scrollToTop(true)" class="scrollup !absolute z-10" style="top: 80px; right: 24px; --color: var(--echo-accent); transform: scale(0.8);" x-show="messages.length > 0 && showScrollButtons" x-transition.opacity>
+        <div class="chevrons-up">
+            <div class="chevronup"></div>
+            <div class="chevronup"></div>
+        </div>
+    </div>
+
+    {# Scroll to bottom button #}
+    <div @click="_scrollToBottom(true)" class="scrolldown !absolute z-10" style="bottom: 96px; right: 24px; --color: var(--echo-accent); transform: scale(0.8);" x-show="messages.length > 0 && showScrollButtons" x-transition.opacity>
+        <div class="chevrons">
+            <div class="chevrondown"></div>
+            <div class="chevrondown"></div>
+        </div>
+    </div>
+
+    {# Messages area #}
+    <div id="chat-messages" x-ref="messages" class="echo-glass flex-1 overflow-y-auto p-3 sm:p-5 flex flex-col gap-2 sm:gap-4"
+         style="background: transparent; min-height: 0; border-radius: 0;"
+         x-init="_scrollToBottom()"
+         @scroll="showScrollButtons = $event.target.scrollHeight > $event.target.clientHeight">
+
+      {# Empty state #}
+      <template x-if="messages.length === 0">
+        <div class="flex flex-col items-center justify-center flex-1 text-center px-4 py-16 animate-fade-in">
+          <div class="w-20 h-20 rounded-full flex items-center justify-center mb-5 shadow-lg wave-avatar"
+               style="background: var(--echo-deep); color: var(--echo-surface);">
+            <span class="text-4xl font-extrabold">E</span>
+          </div>
+          <h3 class="text-2xl font-extrabold mb-2 tracking-tight" style="color: var(--echo-deep);">
+            Ask me anything about this session.
+          </h3>
+          <p class="text-sm mb-8 font-medium" style="color: var(--echo-muted);">I've read the whole thing.</p>
+
+          {# Starter questions #}
+          {% if summary.starter_questions %}
+          <div class="flex flex-col gap-3 w-full max-w-md">
+            {% for question in summary.starter_questions %}
+            <button @click="setInput('{{ question|escapejs }}')"
+                    class="echo-glass px-5 py-3 text-sm font-semibold text-left rounded-2xl transition-transform hover:scale-[1.02]">
+              "{{ question }}"
+            </button>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+      </template>
+
+      {# Message bubbles #}
+      <template x-for="(msg, index) in messages" :key="index">
+        <div class="flex w-full group" :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
+          <div class="max-w-[80%] flex items-end gap-2"
+               :class="msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'">
+            <template x-if="msg.role === 'assistant'">
+              <div class="w-7 h-7 shrink-0 rounded-full flex items-center justify-center shadow mb-1"
+                   style="background: var(--echo-deep); color: var(--echo-surface);">
+                <span class="font-bold text-[10px]">E</span>
+              </div>
+            </template>
+            <div class="relative px-3 py-2 sm:px-4 sm:py-3 rounded-2xl shadow-sm text-sm"
+                 :class="msg.role === 'user' ? 'rounded-br-sm' : 'rounded-bl-sm'"
+                 :style="msg.role === 'user'
+                   ? 'background: var(--echo-accent-soft); color: var(--echo-deep);'
+                   : 'background: var(--liquid-bg); color: var(--echo-deep); border: 1px solid var(--liquid-border);'">
+              <template x-if="msg.role === 'assistant' && msg.isStreaming && !msg.content">
+                <div class="flex items-center gap-1" style="color: var(--echo-muted);">
+                  <span class="animate-pulse font-semibold" x-text="thinkingText"></span>
+                  <div class="loader" style="transform: scale(0.35) translateY(4px); transform-origin: left center;">
+                    <div class="circle"><div class="dot"></div><div class="outline"></div></div>
+                    <div class="circle"><div class="dot"></div><div class="outline"></div></div>
+                    <div class="circle"><div class="dot"></div><div class="outline"></div></div>
+                    <div class="circle"><div class="dot"></div><div class="outline"></div></div>
+                  </div>
+                </div>
+              </template>
+              
+              <template x-if="msg.error">
+                <div class="flex items-start gap-2 text-red-600">
+                  <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                  </svg>
+                  <p class="whitespace-pre-wrap leading-relaxed font-medium text-sm" x-text="msg.content"></p>
+                </div>
+              </template>
+              
+              <template x-if="(msg.content || !msg.isStreaming) && !msg.error">
+                <p class="whitespace-pre-wrap leading-relaxed font-medium inline" x-text="msg.content"></p>
+              </template>
+              
+              <template x-if="msg.isStreaming && msg.content && !msg.error">
+                <span class="inline-block w-2 h-4 ml-1 animate-pulse align-middle"
+                      style="background: var(--echo-accent);"></span>
+              </template>
+              <span class="absolute text-[10px] opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap"
+                    :class="msg.role === 'user' ? 'right-0 -bottom-4' : 'left-0 -bottom-4'"
+                    style="color: var(--echo-muted);" x-text="msg.time"></span>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <div id="chat-anchor" class="h-1"></div>
+    </div>
+
+    {# Input area #}
+    <div class="echo-glass p-3 sm:p-4 border-t" style="background: transparent; border-radius: 0; border-color: var(--liquid-border);">
+
+      <div class="relative flex items-end gap-2">
+        <textarea x-model="inputText" x-ref="inputArea" @keydown="handleKeydown" @input="resizeInput()" rows="1"
+                  placeholder="Type a question… (Enter to send)"
+                  class="flex-1 max-h-48 min-h-[40px] sm:min-h-[46px] py-2 sm:py-3 pl-4 pr-12 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 resize-none transition-colors overflow-y-auto shadow-sm"
+                  style="background: var(--liquid-bg); border: 1px solid var(--liquid-border); color: var(--echo-deep); --tw-ring-color: var(--echo-accent-soft);"></textarea>
+        <button type="button" @click="sendMessage" :disabled="!inputText.trim() || isWaiting"
+                class="absolute right-2 bottom-2 w-8 h-8 rounded-lg flex items-center justify-center transition-all disabled:opacity-40 hover:bg-[color:var(--echo-accent-soft)]">
+          <svg class="w-5 h-5" style="color: var(--echo-accent);" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+  .wave-avatar { animation: wave-animation 2.5s ease-in-out infinite; }
+  @keyframes wave-animation {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-10deg); }
+    75% { transform: rotate(10deg); }
+  }
+  .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Custom animated dots loader */
+  .loader {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    --color: currentColor;
+    --animation: 2s ease-in-out infinite;
+  }
+
+  .loader .circle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    width: 20px;
+    height: 20px;
+    border: solid 2px var(--color);
+    border-radius: 50%;
+    margin: 0 10px;
+    background-color: transparent;
+    animation: circle-keys var(--animation);
+  }
+
+  .loader .circle .dot {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: var(--color);
+    animation: dot-keys var(--animation);
+  }
+
+  .loader .circle .outline {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    animation: outline-keys var(--animation);
+  }
+
+  .circle:nth-child(2) { animation-delay: 0.3s; }
+  .circle:nth-child(3) { animation-delay: 0.6s; }
+  .circle:nth-child(4) { animation-delay: 0.9s; }
+  .circle:nth-child(5) { animation-delay: 1.2s; }
+
+  .circle:nth-child(2) .dot { animation-delay: 0.3s; }
+  .circle:nth-child(3) .dot { animation-delay: 0.6s; }
+  .circle:nth-child(4) .dot { animation-delay: 0.9s; }
+  .circle:nth-child(5) .dot { animation-delay: 1.2s; }
+
+  .circle:nth-child(1) .outline { animation-delay: 0.9s; }
+  .circle:nth-child(2) .outline { animation-delay: 1.2s; }
+  .circle:nth-child(3) .outline { animation-delay: 1.5s; }
+  .circle:nth-child(4) .outline { animation-delay: 1.8s; }
+  .circle:nth-child(5) .outline { animation-delay: 2.1s; }
+
+  @keyframes circle-keys {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.5); opacity: 0.5; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  @keyframes dot-keys {
+    0% { transform: scale(1); }
+    50% { transform: scale(0); }
+    100% { transform: scale(1); }
+  }
+
+  @keyframes outline-keys {
+    0% { transform: scale(0); outline: solid 20px var(--color); outline-offset: 0; opacity: 1; }
+    100% { transform: scale(1); outline: solid 0 transparent; outline-offset: 20px; opacity: 0; }
+  }
+
+  /* Scroll buttons */
+  .scrolldown {
+    --sizeX: 30px;
+    --sizeY: 50px;
+    position: relative;
+    width: var(--sizeX);
+    height: var(--sizeY);
+    margin-left: calc(var(--sizeX) / 2);
+    border: calc(var(--sizeX) / 10) solid var(--color);
+    border-radius: 50px;
+    box-sizing: border-box;
+    cursor: pointer;
+    background: var(--echo-surface);
+  }
+
+  .scrolldown::before {
+    content: "";
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    width: 6px;
+    height: 6px;
+    margin-left: -3px;
+    background-color: var(--color);
+    border-radius: 100%;
+    animation: scrolldown-anim 2s infinite;
+    box-sizing: border-box;
+    box-shadow: 0px -5px 3px 1px rgba(192, 132, 252, 0.4);
+  }
+
+  @keyframes scrolldown-anim {
+    0% { opacity: 0; height: 6px; }
+    40% { opacity: 1; height: 10px; }
+    80% { transform: translate(0, 20px); height: 10px; opacity: 0; }
+    100% { height: 3px; opacity: 0; }
+  }
+
+  .chevrons {
+    padding: 6px 0 0 0;
+    margin-left: -3px;
+    margin-top: 48px;
+    width: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .chevrondown {
+    margin-top: -6px;
+    position: relative;
+    border: solid var(--color);
+    border-width: 0 3px 3px 0;
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    transform: rotate(45deg);
+  }
+
+  .chevrondown:nth-child(odd) { animation: pulse54012 500ms ease infinite alternate; }
+  .chevrondown:nth-child(even) { animation: pulse54012 500ms ease infinite alternate 250ms; }
+
+  @keyframes pulse54012 {
+    from { opacity: 0; }
+    to { opacity: 0.5; }
+  }
+
+  .scrollup {
+    --sizeX: 30px;
+    --sizeY: 50px;
+    position: relative;
+    width: var(--sizeX);
+    height: var(--sizeY);
+    margin-left: calc(var(--sizeX) / 2);
+    border: calc(var(--sizeX) / 10) solid var(--color);
+    border-radius: 50px;
+    box-sizing: border-box;
+    cursor: pointer;
+    background: var(--echo-surface);
+  }
+
+  .scrollup::before {
+    content: "";
+    position: absolute;
+    top: 30px;
+    left: 50%;
+    width: 6px;
+    height: 6px;
+    margin-left: -3px;
+    background-color: var(--color);
+    border-radius: 100%;
+    animation: scrollup-anim 2s infinite;
+    box-sizing: border-box;
+    box-shadow: 0px 5px 3px 1px rgba(192, 132, 252, 0.4);
+  }
+
+  @keyframes scrollup-anim {
+    0% { opacity: 0; height: 6px; }
+    40% { opacity: 1; height: 10px; }
+    80% { transform: translate(0, -20px); height: 10px; opacity: 0; }
+    100% { height: 3px; opacity: 0; }
+  }
+
+  .chevrons-up {
+    padding: 0 0 6px 0;
+    margin-left: -3px;
+    margin-top: -24px;
+    width: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .chevronup {
+    margin-bottom: -6px;
+    position: relative;
+    border: solid var(--color);
+    border-width: 3px 0 0 3px;
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    transform: rotate(45deg);
+  }
+
+  .chevronup:nth-child(odd) { animation: pulse54012 500ms ease infinite alternate; }
+  .chevronup:nth-child(even) { animation: pulse54012 500ms ease infinite alternate 250ms; }
+</style>
+
+{# Existing session messages for hydration — chatPanel reads this in init() #}
+<script id="session-messages-data" type="application/json">
+  [
+    {% for msg in session.messages.all %}
+    {
+      "role": "{{ msg.role|escapejs }}",
+      "content": "{{ msg.content|escapejs }}",
+      "time": "{{ msg.created_at|date:'g:i A' }}"
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ]
+</script>
+
+<!--
+  chatPanel() is defined in /static/core/js/echo-chat.js,
+  which is loaded globally in base.html BEFORE alpine.min.js.
+  This ensures it survives HTMX hx-boost page swaps.
+-->
+{% endblock %}
+

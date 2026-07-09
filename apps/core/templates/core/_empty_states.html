@@ -1,0 +1,201 @@
+<style>
+  /* Common Animations */
+  @keyframes emptyStateMount {
+    0% { opacity: 0; transform: translateY(8px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  .animate-empty-state {
+    animation: emptyStateMount 300ms ease-out forwards;
+  }
+
+  /* 1. no_sessions (echo wave) */
+  @keyframes echoWave {
+    0% { opacity: 0.3; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1.1); }
+    100% { opacity: 0.3; transform: scale(0.8); }
+  }
+  .echo-arc {
+    animation: echoWave 2s infinite ease-in-out;
+    transform-origin: center;
+  }
+  .echo-arc-1 { animation-delay: 0s; }
+  .echo-arc-2 { animation-delay: 200ms; }
+  .echo-arc-3 { animation-delay: 400ms; }
+
+  /* 2. no_action_items (draw checkmark) */
+  @keyframes drawCheck {
+    to { stroke-dashoffset: 0; }
+  }
+  .draw-check-path {
+    stroke-dasharray: 100;
+    stroke-dashoffset: 100;
+    animation: drawCheck 0.8s ease-out forwards;
+  }
+
+  /* 3. no_exam_flags (sparkle) */
+  @keyframes sparkleTwinkle {
+    0%, 100% { transform: scale(0.8) rotate(0deg); opacity: 0.5; }
+    50% { transform: scale(1.2) rotate(15deg); opacity: 1; }
+  }
+  .sparkle-star {
+    animation: sparkleTwinkle 1.5s infinite ease-in-out;
+    transform-origin: center;
+  }
+
+  /* 4. no_flashcards (lightbulb glow) */
+  @keyframes lightbulbGlow {
+    0% { opacity: 0.4; filter: drop-shadow(0 0 2px rgba(245, 158, 11, 0.2)); }
+    50% { opacity: 1; filter: drop-shadow(0 0 15px rgba(245, 158, 11, 0.8)); }
+    100% { opacity: 0.4; filter: drop-shadow(0 0 2px rgba(245, 158, 11, 0.2)); }
+  }
+  .bulb-glow {
+    animation: lightbulbGlow 3s infinite ease-in-out;
+  }
+
+  /* 5. chat_first_open (wave) */
+  @keyframes avatarWave {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-12deg); }
+    75% { transform: rotate(12deg); }
+  }
+  .avatar-wave {
+    animation: avatarWave 2s ease-in-out infinite;
+  }
+
+  /* 6. session_expired (hourglass) */
+  @keyframes hourglassFlip {
+    0% { transform: rotate(0deg); }
+    40% { transform: rotate(180deg); }
+    100% { transform: rotate(180deg); }
+  }
+  .hourglass-flip {
+    animation: hourglassFlip 3s infinite ease-in-out;
+    transform-origin: center;
+  }
+</style>
+
+<div class="animate-empty-state flex flex-col items-center justify-center text-center p-8 w-full">
+  
+  {% if state == 'no_sessions' %}
+  <!-- 1. no_sessions -->
+  <div class="w-32 h-32 relative flex items-center justify-center mb-6">
+    <svg class="absolute inset-0 w-full h-full" viewBox="0 0 100 100" fill="none" stroke="var(--echo-accent)" stroke-width="4" stroke-linecap="round">
+      <path class="echo-arc echo-arc-1" d="M30 50 A 20 20 0 0 1 70 50" />
+      <path class="echo-arc echo-arc-2" d="M20 50 A 30 30 0 0 1 80 50" />
+      <path class="echo-arc echo-arc-3" d="M10 50 A 40 40 0 0 1 90 50" />
+      <path d="M45 40v10a5 5 0 0 0 10 0V40a5 5 0 0 0-10 0z" fill="var(--echo-accent)" />
+      <path d="M40 50a10 10 0 0 0 20 0M50 60v5" stroke="var(--echo-accent)" stroke-width="3" />
+    </svg>
+  </div>
+  <h2 class="text-2xl font-bold mb-3 tracking-tight" style="color: var(--echo-deep);">Drop your first lecture and watch the magic happen.</h2>
+  <p class="text-base font-medium mb-8 max-w-md mx-auto" style="color: var(--echo-muted);">Supports lectures, study sessions, group meetings — anything spoken.</p>
+  <button class="px-6 py-3 rounded-xl font-bold text-white transition-all hover:-translate-y-0.5 active:translate-y-0 shadow-lg hover:shadow-xl" 
+          style="background-color: var(--echo-deep); box-shadow: inset 2px 2px 5px rgba(255,255,255,0.2), inset -2px -2px 5px rgba(0,0,0,0.4);">
+    Upload a recording
+  </button>
+
+  {% elif state == 'no_action_items' %}
+  <!-- 2. no_action_items -->
+  <div class="w-20 h-20 rounded-full flex items-center justify-center mb-6" style="background-color: rgba(16, 185, 129, 0.1); color: var(--echo-success);">
+    <svg class="w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="var(--echo-success)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+      <path class="draw-check-path" d="M5 13l4 4L19 7" />
+    </svg>
+  </div>
+  <h3 class="text-xl font-bold mb-2 tracking-tight" style="color: var(--echo-deep);">No action items found</h3>
+  <p class="text-sm font-medium mb-6 max-w-md mx-auto" style="color: var(--echo-muted);">
+    ECHO couldn't identify any explicit next steps, tasks, or assignments in this lecture recording. This is normal for pure lecture or conceptual study sessions.
+  </p>
+  <div class="p-4 rounded-xl border border-[color:var(--echo-border)] bg-amber-50/50 text-left w-full max-w-md mx-auto">
+    <h4 class="text-xs font-bold uppercase tracking-wider mb-2 text-amber-800">What to do next:</h4>
+    <ul class="text-xs font-semibold text-amber-950 space-y-1.5 list-disc pl-4">
+      <li>Head to the <strong>Ask ECHO</strong> tab and ask: <em>"Can you extract a todo list or suggest action items based on this audio?"</em></li>
+      <li>Upload a more task-focused recording, such as a project coordination or study planning session.</li>
+    </ul>
+  </div>
+
+  {% elif state == 'no_exam_flags' %}
+  <!-- 3. no_exam_flags -->
+  <div class="w-24 h-24 relative flex items-center justify-center mb-6">
+    <svg class="w-16 h-16" viewBox="0 0 24 24" fill="none" stroke="var(--echo-amber)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+      <path class="sparkle-star" style="transform-origin: 12px 6px;" d="M12 2v4m-2-2h4" stroke="var(--echo-amber)" stroke-width="1.5" />
+      <path class="sparkle-star" style="animation-delay: 400ms; transform-origin: 18px 4px;" d="M18 1v2m-1-1h2" stroke="var(--echo-amber)" stroke-width="1.5" />
+    </svg>
+  </div>
+  <h3 class="text-xl font-bold mb-2 tracking-tight" style="color: var(--echo-deep);">No exam flags detected</h3>
+  <p class="text-sm font-medium mb-6 max-w-md mx-auto" style="color: var(--echo-muted);">
+    ECHO didn't find any explicit verbal hints, syllabus references, or direct cues matching exam or grading criteria in this recording.
+  </p>
+  <div class="p-4 rounded-xl border border-[color:var(--echo-border)] bg-amber-50/50 text-left w-full max-w-md mx-auto">
+    <h4 class="text-xs font-bold uppercase tracking-wider mb-2 text-amber-800">What to do next:</h4>
+    <p class="text-xs font-semibold text-amber-950">
+      Study the full key points, or go to the <strong>Ask ECHO</strong> tab and ask: <em>"What are the most testable concepts or likely exam questions from this content?"</em>
+    </p>
+  </div>
+
+  {% elif state == 'no_flashcards' %}
+  <!-- 4. no_flashcards -->
+  <div class="w-24 h-24 flex items-center justify-center mb-6">
+    <svg class="w-16 h-16 bulb-glow" viewBox="0 0 24 24" fill="none" stroke="var(--echo-amber)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 18h6" />
+      <path d="M10 22h4" />
+      <path d="M12 2v1" />
+      <path d="M12 7v1" />
+      <path d="M15 18v-4.5a5 5 0 1 0-6 0V18" />
+    </svg>
+  </div>
+  <h3 class="text-xl font-bold mb-2 tracking-tight" style="color: var(--echo-deep);">No flashcards generated</h3>
+  <p class="text-sm font-medium mb-6 max-w-md mx-auto" style="color: var(--echo-muted);">
+    This recording didn't contain enough distinct definition-based concepts, key terminology, or Q&A patterns to generate standard study flashcards.
+  </p>
+  <div class="p-4 rounded-xl border border-[color:var(--echo-border)] bg-purple-50/30 text-left w-full max-w-md mx-auto">
+    <h4 class="text-xs font-bold uppercase tracking-wider mb-2 text-purple-800">What to do next:</h4>
+    <ul class="text-xs font-semibold text-purple-950 space-y-1.5 list-disc pl-4">
+      <li>Head over to the <strong>Ask ECHO</strong> tab and ask: <em>"Quiz me on this lecture with 5 questions."</em></li>
+      <li>Upload a longer recording next time, focusing on core concepts and vocabulary definitions.</li>
+    </ul>
+  </div>
+
+  {% elif state == 'chat_first_open' %}
+  <!-- 5. chat_first_open -->
+  <div class="w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-md avatar-wave relative" style="background-color: var(--echo-deep); color: white;">
+    <span class="text-4xl font-extrabold font-sans">E</span>
+    <div class="absolute inset-0 rounded-full border-4 opacity-30 pointer-events-none" style="border-color: var(--echo-accent);"></div>
+  </div>
+  <h3 class="text-xl font-bold mb-2 tracking-tight" style="color: var(--echo-deep);">Ask me anything about this session.</h3>
+  <p class="text-sm font-medium mb-8" style="color: var(--echo-muted);">I've read the whole transcript and summary — what do you need?</p>
+  
+  <div class="flex flex-col gap-3 w-full max-w-sm">
+    {% for question in starter_questions %}
+    <button class="px-4 py-3 text-sm font-semibold text-left rounded-xl transition-transform hover:-translate-y-0.5 border shadow-sm echo-btn" 
+            style="background-color: var(--echo-card); border-color: var(--echo-border); color: var(--echo-deep);"
+            onclick="document.querySelector('textarea').value='{{ question|escapejs }}'; document.querySelector('textarea').focus();">
+      "{{ question }}"
+    </button>
+    {% endfor %}
+  </div>
+
+  {% elif state == 'session_expired' %}
+  <!-- 6. session_expired -->
+  <div class="w-24 h-24 flex items-center justify-center mb-6">
+    <svg class="w-16 h-16 hourglass-flip" viewBox="0 0 24 24" fill="none" stroke="var(--echo-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18 3v3l-6 6 6 6v3" />
+      <path d="M6 3v3l6 6-6 6v3" />
+      <path d="M6 3h12" />
+      <path d="M6 21h12" />
+      <path d="M10 6h4l-2 2-2-2z" fill="var(--echo-muted)" opacity="0.5" />
+      <path d="M10 18h4l-2-2-2 2z" fill="var(--echo-muted)" opacity="0.8" />
+    </svg>
+  </div>
+  <h3 class="text-xl font-bold mb-2 tracking-tight" style="color: var(--echo-deep);">This session has expired.</h3>
+  <p class="text-sm font-medium mb-8 max-w-sm mx-auto" style="color: var(--echo-muted);">
+    Sessions are deleted after 24 hours to protect your privacy. Nothing was stored permanently.
+  </p>
+  <button class="px-6 py-3 rounded-xl font-bold text-white transition-transform hover:-translate-y-0.5 shadow-md hover:shadow-lg echo-btn" 
+          style="background-color: var(--echo-deep);">
+    Upload a new recording
+  </button>
+  
+  {% endif %}
+</div>

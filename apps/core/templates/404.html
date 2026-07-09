@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="h-[calc(100vh-4rem)] flex flex-col items-center justify-center text-center px-4 w-full">
+  
+  <style>
+    @keyframes echoWave {
+      0% { opacity: 0.3; transform: scale(0.8); }
+      50% { opacity: 1; transform: scale(1.1); }
+      100% { opacity: 0.3; transform: scale(0.8); }
+    }
+    .echo-arc {
+      animation: echoWave 2s infinite ease-in-out;
+      transform-origin: center;
+    }
+    .echo-arc-1 { animation-delay: 0s; }
+    .echo-arc-2 { animation-delay: 200ms; }
+    .echo-arc-3 { animation-delay: 400ms; }
+  </style>
+
+  <div class="w-32 h-32 relative flex items-center justify-center mb-6">
+    <svg class="absolute inset-0 w-full h-full" viewBox="0 0 100 100" fill="none" stroke="var(--echo-accent)" stroke-width="4" stroke-linecap="round">
+      <path class="echo-arc echo-arc-1" d="M30 50 A 20 20 0 0 1 70 50" />
+      <path class="echo-arc echo-arc-2" d="M20 50 A 30 30 0 0 1 80 50" />
+      <path class="echo-arc echo-arc-3" d="M10 50 A 40 40 0 0 1 90 50" />
+      <path d="M40 45l10 10 10-10" stroke="var(--echo-accent)" stroke-width="4" />
+    </svg>
+  </div>
+  
+  <h1 class="text-3xl font-bold mb-4 tracking-tight" style="color: var(--echo-deep);">Page not found</h1>
+  <p class="text-base font-medium mb-8 max-w-sm mx-auto" style="color: var(--echo-muted);">
+    This frequency doesn't seem to exist. Let's get you back on track.
+  </p>
+  <a href="/" class="px-6 py-3 rounded-xl font-bold transition-transform hover:-translate-y-0.5 shadow-md hover:shadow-lg inline-block echo-btn" 
+     style="background-color: var(--echo-deep); color: white;">
+    Back to Home
+  </a>
+</div>
+{% endblock %}

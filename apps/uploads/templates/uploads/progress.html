@@ -1,0 +1,230 @@
+<div id="processing-panel" 
+     class="echo-glass p-8 w-full max-w-2xl mx-auto"
+     hx-get="/status/{{ session.id }}/" 
+     hx-trigger="every 2s" 
+     hx-target="#processing-panel"
+     hx-swap="outerHTML">
+
+  
+  <!-- Header: File info -->
+  <div class="mb-8 pb-6 border-b border-[color:var(--echo-border)] flex flex-col gap-2">
+    <h2 class="text-xl font-bold truncate" style="color: var(--echo-deep);">{{ session.original_filename }}</h2>
+    <div class="flex items-center gap-3 text-sm font-medium" style="color: var(--echo-muted);">
+      <span>File processing</span>
+      {% if session.duration_seconds %}
+        <span class="w-1 h-1 rounded-full bg-current"></span>
+        <span>{{ session.duration_seconds }}s</span>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if session.status == 'failed' %}
+  <!-- Failure State -->
+  <div class="echo-card p-6 border-l-4 mb-8" style="background-color: white; border-color: var(--echo-amber);">
+    <h3 class="text-lg font-bold mb-2 flex items-center gap-2" style="color: var(--echo-deep);">
+      <svg class="w-5 h-5" style="color: var(--echo-amber);" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+      Processing Failed
+    </h3>
+    <p class="text-sm font-medium mb-4" style="color: var(--echo-muted);">
+      {{ session.error_detail|default:"An unexpected error occurred during processing. Our system couldn't handle the file." }}
+    </p>
+    
+    <details class="text-sm font-medium mb-6 group cursor-pointer" style="color: var(--echo-muted);">
+      <summary class="font-bold select-none hover:opacity-80 focus:outline-none">Common issues &middot; Click to expand</summary>
+      <ul class="list-disc pl-5 space-y-1 mt-3 opacity-90">
+        <li>The audio might be completely silent or contain no speech.</li>
+        <li>The file might be corrupted or in an unsupported codec (we support MP4, MP3, WAV, M4A).</li>
+        <li>The recording might be too short (under 5 seconds) to be transcribed.</li>
+      </ul>
+    </details>
+
+    <a href="/" class="px-6 py-3 rounded-xl font-bold transition-transform hover:-translate-y-0.5 shadow-md hover:shadow-lg inline-block echo-btn" style="background-color: var(--echo-deep); color: white;">
+      Try again with a different file
+    </a>
+  </div>
+  {% else %}
+
+  <!-- Stepper Pipeline -->
+  <div class="flex flex-col gap-8 relative pl-2">
+    <!-- Connecting line behind steps -->
+    <div class="absolute left-[19px] top-4 bottom-4 w-[2px] bg-[color:var(--echo-border)] z-0"></div>
+
+    <!-- Step 1: Extracting audio -->
+    <div class="relative z-10 flex items-center gap-4 step-row" data-step="1">
+      {% if session.status == 'uploading' or session.status == 'extracting' %}
+        <!-- ACTIVE -->
+        <div class="relative w-6 h-6 flex items-center justify-center shrink-0">
+          <div class="absolute inset-0 rounded-full bg-[color:var(--echo-accent)] animate-ping opacity-75"></div>
+          <div class="relative w-3 h-3 rounded-full bg-[color:var(--echo-accent)]"></div>
+        </div>
+        <span class="text-sm font-bold shimmer-text">Extracting audio</span>
+      {% else %}
+        <!-- COMPLETE -->
+        <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-[color:var(--echo-success)] text-white shadow-sm animate-step-complete">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <span class="text-sm line-through animate-step-complete" style="color: var(--echo-muted);">Extracting audio</span>
+      {% endif %}
+    </div>
+
+    <!-- Step 2: Detecting language -->
+    <div class="relative z-10 flex items-center gap-4 step-row" data-step="2">
+      {% if session.status in 'uploading,extracting' %}
+        <!-- PENDING -->
+        <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-transparent border-2 border-[color:var(--echo-muted)] opacity-40"></div>
+        <span class="text-sm font-medium opacity-60" style="color: var(--echo-muted);">Detecting language</span>
+      {% elif session.status == 'detecting' %}
+        <!-- ACTIVE -->
+        <div class="relative w-6 h-6 flex items-center justify-center shrink-0">
+          <div class="absolute inset-0 rounded-full bg-[color:var(--echo-accent)] animate-ping opacity-75"></div>
+          <div class="relative w-3 h-3 rounded-full bg-[color:var(--echo-accent)]"></div>
+        </div>
+        <span class="text-sm font-bold shimmer-text">Detecting language</span>
+      {% else %}
+        <!-- COMPLETE -->
+        <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-[color:var(--echo-success)] text-white shadow-sm animate-step-complete">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <span class="text-sm line-through animate-step-complete" style="color: var(--echo-muted);">Detecting language</span>
+      {% endif %}
+    </div>
+
+    <!-- Step 3: Transcribing -->
+    <div class="relative z-10 flex items-center gap-4 step-row" data-step="3">
+      {% if session.status in 'uploading,extracting,detecting' %}
+        <!-- PENDING -->
+        <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-transparent border-2 border-[color:var(--echo-muted)] opacity-40"></div>
+        <span class="text-sm font-medium opacity-60" style="color: var(--echo-muted);">Transcribing</span>
+      {% elif session.status == 'transcribing' %}
+        <!-- ACTIVE -->
+        <div class="relative w-6 h-6 flex items-center justify-center shrink-0">
+          <div class="absolute inset-0 rounded-full bg-[color:var(--echo-accent)] animate-ping opacity-75"></div>
+          <div class="relative w-3 h-3 rounded-full bg-[color:var(--echo-accent)]"></div>
+        </div>
+        <span class="text-sm font-bold shimmer-text">Transcribing</span>
+      {% else %}
+        <!-- COMPLETE -->
+        <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-[color:var(--echo-success)] text-white shadow-sm animate-step-complete">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <span class="text-sm line-through animate-step-complete" style="color: var(--echo-muted);">Transcribing</span>
+      {% endif %}
+    </div>
+
+    <!-- Step 4: Generating summary -->
+    <div class="relative z-10 flex items-center gap-4 step-row" data-step="4">
+      {% if session.status in 'uploading,extracting,detecting,transcribing' %}
+        <!-- PENDING -->
+        <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-transparent border-2 border-[color:var(--echo-muted)] opacity-40"></div>
+        <span class="text-sm font-medium opacity-60" style="color: var(--echo-muted);">Generating summary</span>
+      {% elif session.status == 'summarising' %}
+        <!-- ACTIVE -->
+        <div class="relative w-6 h-6 flex items-center justify-center shrink-0">
+          <div class="absolute inset-0 rounded-full bg-[color:var(--echo-accent)] animate-ping opacity-75"></div>
+          <div class="relative w-3 h-3 rounded-full bg-[color:var(--echo-accent)]"></div>
+        </div>
+        <span class="text-sm font-bold shimmer-text">Generating summary</span>
+      {% else %}
+        <!-- COMPLETE -->
+        <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-[color:var(--echo-success)] text-white shadow-sm animate-step-complete">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <span class="text-sm line-through animate-step-complete" style="color: var(--echo-muted);">Generating summary</span>
+      {% endif %}
+    </div>
+
+    <!-- Step 5: Creating flashcards -->
+    <div class="relative z-10 flex items-center gap-4 step-row" data-step="5">
+      {% if session.status in 'uploading,extracting,detecting,transcribing,summarising' %}
+        <!-- PENDING -->
+        <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-transparent border-2 border-[color:var(--echo-muted)] opacity-40"></div>
+        <span class="text-sm font-medium opacity-60" style="color: var(--echo-muted);">Creating flashcards</span>
+      {% elif session.status == 'flashcards' %}
+        <!-- ACTIVE -->
+        <div class="relative w-6 h-6 flex items-center justify-center shrink-0">
+          <div class="absolute inset-0 rounded-full bg-[color:var(--echo-accent)] animate-ping opacity-75"></div>
+          <div class="relative w-3 h-3 rounded-full bg-[color:var(--echo-accent)]"></div>
+        </div>
+        <span class="text-sm font-bold shimmer-text">Creating flashcards</span>
+      {% else %}
+        <!-- COMPLETE -->
+        <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-[color:var(--echo-success)] text-white shadow-sm animate-step-complete">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <span class="text-sm line-through animate-step-complete" style="color: var(--echo-muted);">Creating flashcards</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Skeletons for upcoming content -->
+  <div class="mt-12 pt-8 border-t border-[color:var(--echo-border)]">
+    <h3 class="text-xs font-bold mb-6 tracking-widest uppercase" style="color: var(--echo-muted);">Preparing your insights</h3>
+    
+    <!-- Skeleton Summary Bullets -->
+    <div class="space-y-4 mb-10">
+      <div class="flex gap-4 items-center">
+        <div class="w-2 h-2 rounded-full shrink-0 bg-[color:var(--echo-border)] opacity-60 animate-pulse"></div>
+        <div class="h-3 rounded bg-[color:var(--echo-border)] opacity-60 animate-pulse w-full max-w-[85%]"></div>
+      </div>
+      <div class="flex gap-4 items-center">
+        <div class="w-2 h-2 rounded-full shrink-0 bg-[color:var(--echo-border)] opacity-60 animate-pulse"></div>
+        <div class="h-3 rounded bg-[color:var(--echo-border)] opacity-60 animate-pulse w-full max-w-[70%]"></div>
+      </div>
+      <div class="flex gap-4 items-center">
+        <div class="w-2 h-2 rounded-full shrink-0 bg-[color:var(--echo-border)] opacity-60 animate-pulse"></div>
+        <div class="h-3 rounded bg-[color:var(--echo-border)] opacity-60 animate-pulse w-full max-w-[90%]"></div>
+      </div>
+    </div>
+
+    <!-- Skeleton Flashcards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div class="h-28 rounded-xl border-2 border-[color:var(--echo-border)] border-dashed opacity-40 animate-pulse" style="background-color: var(--echo-card);"></div>
+      <div class="h-28 rounded-xl border-2 border-[color:var(--echo-border)] border-dashed opacity-40 animate-pulse hidden sm:block" style="background-color: var(--echo-card);"></div>
+    </div>
+  </div>
+
+  <!-- Cancel button -->
+  <div class="mt-8 flex justify-center">
+    <form hx-post="/cancel/{{ session.id }}/" hx-target="#processing-panel" hx-swap="outerHTML">
+      <button type="submit" class="text-sm font-semibold tracking-wide hover:opacity-80 transition-opacity" style="color: var(--echo-error);">
+        Cancel processing
+      </button>
+    </form>
+  </div>
+  {% endif %}
+
+  <style>
+    /* Shimmer effect for active text */
+    @keyframes shimmer {
+      0% { background-position: -200% center; }
+      100% { background-position: 200% center; }
+    }
+    .shimmer-text {
+      background: linear-gradient(90deg, var(--echo-deep) 0%, var(--echo-accent) 50%, var(--echo-deep) 100%);
+      background-size: 200% auto;
+      color: transparent;
+      -webkit-background-clip: text;
+      background-clip: text;
+      animation: shimmer 3s linear infinite;
+    }
+    
+    /* Slide up and fade in for completed steps */
+    @keyframes stepComplete {
+      0% { opacity: 0; transform: translateY(8px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    .animate-step-complete {
+      animation: stepComplete 300ms ease-out forwards;
+    }
+  </style>
+</div>
