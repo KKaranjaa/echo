@@ -102,6 +102,7 @@ def upload_file(request):
     # Create session
     session = Session.objects.create(
         id=session_id,
+        user=request.user if request.user.is_authenticated else None,
         original_filename=uploaded_file.name,
         status='uploading'
     )
@@ -151,6 +152,7 @@ def submit_url(request):
 
     session = Session.objects.create(
         id=session_id,
+        user=request.user if request.user.is_authenticated else None,
         original_filename=title or 'url_import',
         status='initiated',
         source_url=url,

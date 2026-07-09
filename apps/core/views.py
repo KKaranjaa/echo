@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from django.http import HttpResponse, FileResponse
+from django.http import HttpResponse, FileResponse, HttpResponseNotFound
 from django.conf import settings
 
 # ── Static asset helper ───────────────────────────────────────────────────────
@@ -70,6 +70,19 @@ def favicon_svg(request):
 
 
 def favicon_32(request):
-    """GET /favicon-32x32.png → 192px PNG icon scaled in-browser."""
-    icon_path = _STATIC_CORE / "icons" / "icon-192.png"
-    return FileResponse(open(icon_path, "rb"), content_type="image/png")
+    """Fallback raster favicon."""
+    path = Path(settings.STATIC_ROOT) / "core/img/favicon-32x32.png"
+    if not path.exists():
+        return HttpResponseNotFound()
+    return FileResponse(open(path, "rb"), content_type="image/png")
+
+from django.shortcuts import redirect
+
+def confirm_email_manual(request):
+    if request.method == 'POST':
+        key = request.POST.get('key', '').strip()
+        if key:
+            # Redirect to allauth's built-in confirm view
+            return redirect('account_confirm_email', key=key)
+    # If GET or no key, just redirect to login
+    return redirect('account_login')

@@ -490,8 +490,8 @@
   ═══════════════════════════════════════════════════════════════ -->
   <header class="echo-glass sticky top-0 z-50 w-full"
     style="border-radius:0; border-bottom: 1px solid rgba(255,255,255,0.08);">
-    <nav class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-4" role="navigation"
-      aria-label="Main navigation">
+    <nav class="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-4"
+      role="navigation" aria-label="Main navigation">
       <!-- Wordmark -->
       <a href="/" class="select-none tracking-tight leading-none flex-shrink-0" aria-label="ECHO home">
         <span style="
@@ -535,7 +535,17 @@
             </svg>
           </span>
         </label>
-        {% block nav_actions %}{% endblock %}
+        {% block nav_actions %}
+        {% if user.is_authenticated %}
+        <a href="{% url 'dashboard:index' %}"
+          class="px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-sm"
+          style="background:var(--echo-accent); color:white;">Dashboard</a>
+        {% else %}
+        <a href="{% url 'account_login' %}" class="px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-sm"
+          style="background:rgba(255,255,255,0.1); border:1px solid var(--echo-border); color:var(--echo-text);">Log
+          In</a>
+        {% endif %}
+        {% endblock %}
       </div>
     </nav>
   </header>
@@ -553,7 +563,7 @@
   <footer class="w-full py-2 text-center text-xs"
     style="color: var(--echo-muted); border-top: 1px solid var(--echo-border);" role="contentinfo">
     <span style="font-family: 'Inter', sans-serif;">
-      &copy; {% now "Y" %} ECHO &mdash; built with Django&nbsp;5
+      &copy; {% now "Y" %} ECHO &mdash; study smart
     </span>
   </footer>
 
@@ -573,6 +583,7 @@
 
   <!-- ECHO Upload Component (load before Alpine so it's available) -->
   <script src="{% static 'core/js/echo-upload.js' %}" defer></script>
+  <script src="{% static 'core/js/echo-link.js' %}" defer></script>
 
   <!-- ECHO Chat Component (load before Alpine so it's available) -->
   <script src="{% static 'core/js/echo-chat.js' %}" defer></script>

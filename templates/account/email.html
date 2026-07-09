@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Account Settings - Email{% endblock %}
+
+{% block content %}
+<div class="w-full max-w-4xl mx-auto py-6 px-4">
+  <div class="flex flex-col md:flex-row gap-6">
+    
+    <!-- Settings Sidebar -->
+    <aside class="w-full md:w-56 flex-shrink-0">
+      <div class="echo-card p-4 flex flex-col gap-1">
+        <h3 class="text-xs font-bold uppercase tracking-widest mb-2 px-3" style="color:var(--echo-muted);">Account</h3>
+        <a href="{% url 'account_email' %}" 
+           class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold transition"
+           style="background: var(--echo-accent); color: white;">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          Email Addresses
+        </a>
+        <a href="{% url 'account_change_password' %}" 
+           class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium hover:bg-white/5 transition"
+           style="color: var(--echo-deep);">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+          Change Password
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="flex-1 flex flex-col gap-6">
+      <div class="echo-card p-6">
+        <h2 class="text-xl font-bold mb-4" style="color: var(--echo-deep);">Email Addresses</h2>
+
+        {% if form.non_field_errors %}
+          <div class="p-3 text-sm rounded-lg mb-4" style="background: rgba(239, 68, 68, 0.1); color: var(--echo-error);">
+            {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+          </div>
+        {% endif %}
+
+        {% if user.emailaddress_set.all %}
+          <form action="{% url 'account_email' %}" method="post">
+            {% csrf_token %}
+            <div class="flex flex-col gap-3 mb-4">
+              {% for emailaddress in user.emailaddress_set.all %}
+                <label class="flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer hover:bg-white/5 transition-colors"
+                       style="border-color: var(--echo-border);">
+                  <input type="radio" name="email" value="{{ emailaddress.email }}"
+                         {% if emailaddress.primary or user.emailaddress_set.count == 1 %}checked{% endif %}
+                         class="accent-[color:var(--echo-accent)]">
+                  <div class="flex-1">
+                    <p class="text-sm font-bold" style="color: var(--echo-deep);">{{ emailaddress.email }}</p>
+                    <p class="text-xs mt-0.5" style="color: var(--echo-muted);">
+                      {% if emailaddress.verified %}<span class="text-green-500 font-semibold">Verified</span>{% else %}<span style="color: var(--echo-error);">Unverified</span>{% endif %}
+                      {% if emailaddress.primary %}&nbsp;&middot;&nbsp;<span class="font-semibold">Primary</span>{% endif %}
+                    </p>
+                  </div>
+                </label>
+              {% endfor %}
+            </div>
+            
+            <div class="flex flex-wrap gap-2">
+              <button type="submit" name="action_primary"
+                      class="px-4 py-2 rounded-lg text-xs font-bold hover:scale-[1.02] transition-transform"
+                      style="background: var(--echo-accent); color: white;">Make Primary</button>
+              <button type="submit" name="action_send"
+                      class="px-4 py-2 rounded-lg text-xs font-bold border-2 hover:bg-white/5 transition-colors"
+                      style="border-color: var(--echo-border); color: var(--echo-deep);">Re-send Verification</button>
+              <button type="submit" name="action_remove"
+                      class="px-4 py-2 rounded-lg text-xs font-bold border-2 hover:bg-red-500/10 transition-colors"
+                      style="border-color: rgba(239,68,68,0.3); color: #ef4444;">Remove</button>
+            </div>
+          </form>
+        {% endif %}
+
+        <hr class="my-6" style="border-color: var(--echo-border);">
+
+        <h3 class="text-base font-bold mb-3" style="color: var(--echo-deep);">Add Email Address</h3>
+        <form method="POST" action="{% url 'account_email' %}" class="flex gap-2 flex-wrap">
+          {% csrf_token %}
+          <input type="email" name="email" required placeholder="New email address"
+                 class="flex-1 min-w-0 px-4 py-2.5 text-sm rounded-xl border-2 outline-none transition-all"
+                 style="background: var(--liquid-bg); border-color: var(--liquid-border); color: var(--echo-deep);"
+                 onfocus="this.style.borderColor='var(--echo-accent)'" onblur="this.style.borderColor='var(--liquid-border)'">
+          <button type="submit" name="action_add"
+                  class="px-5 py-2.5 rounded-xl text-sm font-bold border-2 hover:bg-white/5 transition-colors whitespace-nowrap"
+                  style="border-color: var(--echo-border); color: var(--echo-deep);">
+            Add Email
+          </button>
+        </form>
+      </div>
+    </main>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,15 @@
+Welcome to ECHO!
+
+To confirm your email address and log in, please click the following link:
+
+{{ activate_url }}
+
+---
+
+IF YOU CANNOT CLICK THE LINK (e.g. you are on the mobile app):
+Please enter this verification code on the login screen:
+
+{{ key }}
+
+---
+If you didn't request this, you can safely ignore this email.

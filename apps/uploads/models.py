@@ -2,6 +2,7 @@ import uuid
 from datetime import timedelta
 from django.db import models
 from django.utils import timezone
+from django.conf import settings
 
 def default_expires_at():
     return timezone.now() + timedelta(hours=24)
@@ -19,6 +20,8 @@ class Session(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
+    tab = models.ForeignKey('dashboard.Tab', on_delete=models.SET_NULL, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     expires_at = models.DateTimeField(default=default_expires_at)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='uploading')

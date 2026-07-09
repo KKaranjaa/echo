@@ -232,6 +232,10 @@
 
 <script>
   function sessionDetail() {
+    const SESSION_ID = '{{ session.id }}';
+    const STORAGE_KEY = `echo_results_state_${SESSION_ID}`;
+    const contentScroller = () => document.querySelector('.flex-1.overflow-y-auto.p-6');
+
     return {
       activeTab: 'summary',
       tabs: [
@@ -241,12 +245,43 @@
         { id: 'transcript',  label: 'Transcript',  shortcut: 'R' },
       ],
       init() {
-        // Keyboard shortcuts for tab switching (S, T, F, R)
+        // ── Restore state saved before navigating to chat ──────────────────
+        try {
+          const saved = sessionStorage.getItem(STORAGE_KEY);
+          if (saved) {
+            const { tab, scrollTop } = JSON.parse(saved);
+            sessionStorage.removeItem(STORAGE_KEY);
+            if (tab) this.activeTab = tab;
+            // Restore scroll after Alpine finishes rendering the active tab
+            if (scrollTop) {
+              this.$nextTick(() => {
+                const el = contentScroller();
+                if (el) el.scrollTop = scrollTop;
+              });
+            }
+          }
+        } catch (e) { /* ignore storage errors */ }
+
+        // ── Save state whenever the user leaves this page ──────────────────
+        const saveState = () => {
+          try {
+            const el = contentScroller();
+            sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+              tab: this.activeTab,
+              scrollTop: el ? el.scrollTop : 0,
+            }));
+          } catch (e) { /* ignore storage errors */ }
+        };
+        window.addEventListener('beforeunload', saveState);
+        // Also save on visibilitychange (back/forward cache in mobile browsers)
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'hidden') saveState();
+        });
+
+        // ── Keyboard shortcuts for tab switching (S, T, F, R) ─────────────
         window.addEventListener('keydown', (e) => {
-          // Skip if user is typing in an input/textarea/contenteditable
           const tag = document.activeElement?.tagName;
           if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || document.activeElement?.isContentEditable) return;
-          // Skip if any modifier key is held
           if (e.ctrlKey || e.metaKey || e.altKey) return;
           const map = { s: 'summary', t: 'tasks', f: 'flashcards', r: 'transcript' };
           const tabId = map[e.key.toLowerCase()];

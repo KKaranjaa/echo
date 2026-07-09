@@ -1,0 +1,337 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard — ECHO{% endblock %}
+{% block meta_description %}Your personal ECHO dashboard — view, manage and organize all your processed sessions.{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{% static 'core/css/echo.css' %}">
+<style>
+  html, body { height: 100%; }
+  body { display: flex; flex-direction: column; }
+  main#main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex h-full" x-data="dashboardApp()" style="height: calc(100vh - 3.5rem); overflow: hidden;">
+
+  {# ── SIDEBAR ──────────────────────────────────────────────────────── #}
+  <aside class="echo-glass flex flex-col gap-2 p-4 w-56 flex-shrink-0 overflow-y-auto"
+         style="border-radius:0; border-right: 1px solid var(--echo-border);">
+
+    <p class="text-xs font-bold uppercase tracking-widest mb-2" style="color:var(--echo-subtext);">Folders</p>
+
+    {# All Sessions #}
+    <a href="{% url 'dashboard:index' %}"
+       class="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold transition-all"
+       :class="!activeTab ? 'bg-[color:var(--echo-accent)] text-white shadow-lg' : 'hover:bg-white/5'"
+       style="color: {% if not active_tab %}white{% else %}var(--echo-text){% endif %};">
+      <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7h18M3 12h18M3 17h18"/></svg>
+      All Sessions
+    </a>
+
+    {# User Tabs #}
+    {% for tab in tabs %}
+    <div class="group flex items-center gap-1">
+      <a href="{% url 'dashboard:index' %}?tab={{ tab.id }}"
+         class="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all truncate"
+         :class="activeTab === '{{ tab.id }}' ? 'bg-[color:var(--echo-accent)] text-white shadow-lg' : 'hover:bg-white/5'"
+         style="color: var(--echo-text);">
+        <svg class="w-4 h-4 flex-shrink-0 opacity-60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 3h8a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
+        <span class="truncate" x-text="tabNames['{{ tab.id }}'] || '{{ tab.name }}'">{{ tab.name }}</span>
+      </a>
+      {# Rename / Delete tab controls #}
+      <div class="hidden group-hover:flex items-center gap-0.5 flex-shrink-0">
+        <button @click="startRename('{{ tab.id }}', '{{ tab.name }}')"
+                class="p-1 rounded-lg hover:bg-white/10 transition" title="Rename">
+          <svg class="w-3 h-3" style="color:var(--echo-subtext)" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+        </button>
+        <button @click="deleteTab('{{ tab.id }}')"
+                class="p-1 rounded-lg hover:bg-red-500/20 transition" title="Delete folder">
+          <svg class="w-3 h-3 text-red-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+        </button>
+      </div>
+    </div>
+    {% endfor %}
+
+    {# New Folder button #}
+    <button @click="showNewFolder = true"
+            class="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all mt-1"
+            style="color: var(--echo-accent); border: 1.5px dashed var(--echo-accent);">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      New folder
+    </button>
+
+    {# Divider + account actions #}
+    <div class="mt-auto pt-4 border-t flex flex-col gap-1" style="border-color: var(--echo-border);">
+      <a href="/" class="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium hover:bg-white/5 transition" style="color:var(--echo-text);">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4v16m-8-8h16"/></svg>
+        New session
+      </a>
+      <a href="{% url 'account_logout' %}" class="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium hover:bg-red-500/10 transition" style="color: #ef4444;">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1"/></svg>
+        Sign out
+      </a>
+    </div>
+  </aside>
+
+  {# ── MAIN CONTENT ─────────────────────────────────────────────────── #}
+  <main class="flex-1 flex flex-col overflow-hidden p-6 gap-4">
+
+    {# Header row #}
+    <div class="flex items-center justify-between gap-4 flex-shrink-0">
+      <div>
+        <h1 class="text-2xl font-bold" style="color:var(--echo-text);">
+          {% if active_tab %}{{ active_tab.name }}{% else %}All Sessions{% endif %}
+        </h1>
+        <p class="text-sm" style="color:var(--echo-subtext);">{{ sessions|length }} session{{ sessions|length|pluralize }}</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <a href="/" class="hidden sm:flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold shadow-lg transition-opacity hover:opacity-80"
+           style="background:linear-gradient(135deg,var(--echo-accent),var(--echo-muted));color:white;">
+          + New session
+        </a>
+        
+        <!-- User Menu Dropdown -->
+        <div class="relative" x-data="{ userMenuOpen: false }" @click.outside="userMenuOpen = false">
+          <button @click="userMenuOpen = !userMenuOpen"
+                  class="flex items-center justify-center w-10 h-10 rounded-full font-bold shadow-md transition-transform hover:scale-105"
+                  style="background: var(--echo-surface); border: 1px solid var(--echo-border); color: var(--echo-text);">
+            {{ user.username|default:user.email|make_list|first|upper }}
+          </button>
+          
+          <div x-show="userMenuOpen" x-transition x-cloak
+               class="absolute right-0 top-12 echo-glass rounded-xl p-2 z-50 w-48 flex flex-col gap-1 shadow-2xl"
+               style="border: 1px solid var(--echo-border);">
+            <div class="px-3 py-2 border-b mb-1 truncate" style="border-color: var(--echo-border);">
+              <p class="text-xs font-bold truncate" style="color:var(--echo-text);">{{ user.username|default:"User" }}</p>
+              <p class="text-xs truncate" style="color:var(--echo-subtext);">{{ user.email }}</p>
+            </div>
+            <a href="{% url 'account_email' %}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium hover:bg-white/10 transition" style="color:var(--echo-text);">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+              Settings
+            </a>
+            <a href="{% url 'account_logout' %}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium hover:bg-red-500/10 transition" style="color:#ef4444;">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1"/></svg>
+              Sign Out
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# Session grid #}
+    <div class="flex-1 overflow-y-auto">
+      {% if sessions %}
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {% for session in sessions %}
+        <div class="echo-card group relative flex flex-col gap-3 p-4 hover:scale-[1.02] transition-transform cursor-default"
+             x-data="{ menuOpen: false }">
+
+          {# Status badge #}
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold px-2 py-0.5 rounded-full"
+                  style="background: {% if session.status == 'complete' %}rgba(34,197,94,0.15){% elif session.status == 'failed' %}rgba(239,68,68,0.15){% else %}rgba(192,132,252,0.15){% endif %};
+                         color: {% if session.status == 'complete' %}#22c55e{% elif session.status == 'failed' %}#ef4444{% else %}var(--echo-accent){% endif %};">
+              {{ session.status }}
+            </span>
+            {% if session.tab %}
+            <span class="text-xs" style="color:var(--echo-subtext);">{{ session.tab.name }}</span>
+            {% endif %}
+          </div>
+
+          {# Title #}
+          <p class="text-sm font-semibold leading-snug line-clamp-2" style="color:var(--echo-text);">
+            {{ session.original_filename }}
+          </p>
+
+          {# Meta #}
+          <p class="text-xs mt-auto" style="color:var(--echo-subtext);">
+            {{ session.created_at|date:"M j, Y · g:i A" }}
+            {% if session.duration_seconds %}· {{ session.duration_seconds|floatformat:0 }}s{% endif %}
+          </p>
+
+          {# Action buttons #}
+          <div class="flex items-center gap-2">
+            {% if session.status == 'complete' %}
+            <a href="/results/{{ session.id }}/"
+               class="flex-1 text-center py-1.5 rounded-lg text-xs font-bold transition-all"
+               style="background:var(--echo-accent);color:white;">
+              Open →
+            </a>
+            {% endif %}
+
+            {# Folder assign dropdown #}
+            <div class="relative" @click.outside="menuOpen = false">
+              <button @click="menuOpen = !menuOpen"
+                      class="p-1.5 rounded-lg transition hover:bg-white/10" title="Move to folder">
+                <svg class="w-4 h-4" style="color:var(--echo-subtext)" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7a2 2 0 012-2h4l2 3h8a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
+              </button>
+              <div x-show="menuOpen" x-transition
+                   class="absolute right-0 bottom-8 echo-glass rounded-xl p-2 z-50 w-40 flex flex-col gap-1 shadow-2xl"
+                   style="border: 1px solid var(--echo-border);">
+                <p class="text-xs font-bold px-2 pb-1" style="color:var(--echo-subtext);">Move to…</p>
+                <button @click="assignTab('{{ session.id }}', null); menuOpen=false"
+                        class="px-2 py-1.5 text-xs text-left rounded-lg hover:bg-white/10 transition" style="color:var(--echo-text);">
+                  None
+                </button>
+                {% for tab in tabs %}
+                <button @click="assignTab('{{ session.id }}', '{{ tab.id }}'); menuOpen=false"
+                        class="px-2 py-1.5 text-xs text-left rounded-lg hover:bg-white/10 transition" style="color:var(--echo-text);">
+                  {{ tab.name }}
+                </button>
+                {% endfor %}
+              </div>
+            </div>
+
+            {# Delete #}
+            <button @click="deleteSession('{{ session.id }}')"
+                    class="p-1.5 rounded-lg transition hover:bg-red-500/20" title="Delete session">
+              <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      {% else %}
+      {# Empty state #}
+      <div class="flex flex-col items-center justify-center h-full gap-4 text-center py-24">
+        <div class="w-20 h-20 rounded-full flex items-center justify-center mb-2"
+             style="background:rgba(192,132,252,0.1);">
+          <svg class="w-10 h-10" style="color:var(--echo-accent)" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <path d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+          </svg>
+        </div>
+        <h2 class="text-xl font-bold" style="color:var(--echo-text);">No sessions yet</h2>
+        <p class="text-sm max-w-xs" style="color:var(--echo-subtext);">Upload a lecture or paste a link to get started. Everything you process will appear here.</p>
+        <a href="/" class="mt-2 px-6 py-2.5 rounded-full font-bold text-sm shadow-lg"
+           style="background:linear-gradient(135deg,var(--echo-accent),var(--echo-muted));color:white;">
+          Start a new session →
+        </a>
+      </div>
+      {% endif %}
+    </div>
+  </main>
+
+  {# ── NEW FOLDER MODAL ─────────────────────────────────────────────────── #}
+  <div x-show="showNewFolder" x-transition
+       class="fixed inset-0 z-[200] flex items-center justify-center"
+       style="background:rgba(0,0,0,0.5); display:none;" x-cloak>
+    <div class="echo-card p-6 w-80 flex flex-col gap-4" @click.outside="showNewFolder = false">
+      <h3 class="font-bold text-lg" style="color:var(--echo-text);">New folder</h3>
+      <input x-model="newFolderName" @keydown.enter="createFolder()" type="text" placeholder="Folder name…"
+             class="w-full px-4 py-2 rounded-xl text-sm outline-none"
+             style="background:rgba(255,255,255,0.07);border:1.5px solid var(--echo-border);color:var(--echo-text);"
+             @focus="$el.style.borderColor='var(--echo-accent)'" @blur="$el.style.borderColor='var(--echo-border)'"
+             x-ref="folderInput" @x-show.window="$nextTick(() => $refs.folderInput.focus())">
+      <div class="flex gap-2 justify-end">
+        <button @click="showNewFolder = false"
+                class="px-4 py-2 rounded-xl text-sm font-medium" style="color:var(--echo-subtext);">Cancel</button>
+        <button @click="createFolder()"
+                class="px-4 py-2 rounded-xl text-sm font-bold"
+                style="background:var(--echo-accent);color:white;">Create</button>
+      </div>
+    </div>
+  </div>
+
+  {# ── RENAME MODAL ──────────────────────────────────────────────────────── #}
+  <div x-show="renameTabId" x-transition
+       class="fixed inset-0 z-[200] flex items-center justify-center"
+       style="background:rgba(0,0,0,0.5); display:none;" x-cloak>
+    <div class="echo-card p-6 w-80 flex flex-col gap-4" @click.outside="renameTabId = null">
+      <h3 class="font-bold text-lg" style="color:var(--echo-text);">Rename folder</h3>
+      <input x-model="renameValue" @keydown.enter="submitRename()" type="text"
+             class="w-full px-4 py-2 rounded-xl text-sm outline-none"
+             style="background:rgba(255,255,255,0.07);border:1.5px solid var(--echo-border);color:var(--echo-text);"
+             @focus="$el.style.borderColor='var(--echo-accent)'" @blur="$el.style.borderColor='var(--echo-border)'">
+      <div class="flex gap-2 justify-end">
+        <button @click="renameTabId = null"
+                class="px-4 py-2 rounded-xl text-sm font-medium" style="color:var(--echo-subtext);">Cancel</button>
+        <button @click="submitRename()"
+                class="px-4 py-2 rounded-xl text-sm font-bold"
+                style="background:var(--echo-accent);color:white;">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function dashboardApp() {
+  return {
+    activeTab: '{{ active_tab.id|default:"" }}' || null,
+    tabNames: {},
+    showNewFolder: false,
+    newFolderName: '',
+    renameTabId: null,
+    renameValue: '',
+
+    async createFolder() {
+      const name = this.newFolderName.trim();
+      if (!name) return;
+      const r = await fetch("{% url 'dashboard:create-tab' %}", {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': this.csrf()},
+        body: JSON.stringify({ name })
+      });
+      if (r.ok) {
+        this.showNewFolder = false;
+        this.newFolderName = '';
+        window.location.reload();
+      }
+    },
+
+    startRename(id, currentName) {
+      this.renameTabId = id;
+      this.renameValue = currentName;
+    },
+
+    async submitRename() {
+      if (!this.renameTabId || !this.renameValue.trim()) return;
+      const r = await fetch(`/dashboard/tabs/${this.renameTabId}/rename/`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': this.csrf()},
+        body: JSON.stringify({ name: this.renameValue.trim() })
+      });
+      if (r.ok) {
+        this.tabNames[this.renameTabId] = this.renameValue.trim();
+        this.renameTabId = null;
+      }
+    },
+
+    async deleteTab(id) {
+      if (!confirm('Delete this folder? Sessions inside will not be deleted.')) return;
+      await fetch(`/dashboard/tabs/${id}/delete/`, {
+        method: 'POST',
+        headers: {'X-CSRFToken': this.csrf()}
+      });
+      window.location.reload();
+    },
+
+    async assignTab(sessionId, tabId) {
+      await fetch(`/dashboard/sessions/${sessionId}/assign-tab/`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': this.csrf()},
+        body: JSON.stringify({ tab_id: tabId })
+      });
+      window.location.reload();
+    },
+
+    async deleteSession(sessionId) {
+      if (!confirm('Delete this session permanently?')) return;
+      await fetch(`/dashboard/sessions/${sessionId}/delete/`, {
+        method: 'POST',
+        headers: {'X-CSRFToken': this.csrf()}
+      });
+      window.location.reload();
+    },
+
+    csrf() {
+      return document.cookie.split('; ').find(r => r.startsWith('csrftoken='))?.split('=')[1] || '';
+    }
+  };
+}
+</script>
+
+{% endblock %}

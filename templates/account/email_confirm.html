@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Verify Email - ECHO{% endblock %}
+
+{% block content %}
+<div class="w-full max-w-md mx-auto mt-10">
+  <div class="echo-card p-6">
+    <div class="text-center mb-6">
+      <h2 class="text-2xl font-bold" style="color: var(--echo-deep);">Verify your email</h2>
+      <p class="text-sm mt-1" style="color: var(--echo-muted);">Almost there!</p>
+    </div>
+
+    {% if confirmation %}
+      <p class="text-center text-sm mb-6" style="color: var(--echo-deep);">
+        Please confirm that <strong>{{ confirmation.email_address.email }}</strong> belongs to you.
+      </p>
+      
+      <form method="POST" action="{% url 'account_confirm_email' key %}" class="flex flex-col gap-4">
+        {% csrf_token %}
+        <button type="submit"
+                class="w-full py-2.5 rounded-lg text-sm font-bold shadow-md hover:scale-[1.02] transition-transform"
+                style="background: var(--echo-accent); color: white;">
+          Confirm & Log In
+        </button>
+      </form>
+    {% else %}
+      <p class="text-center text-sm mb-6" style="color: var(--echo-error);">
+        This magic link has expired or is invalid.
+      </p>
+      <a href="{% url 'account_login' %}" 
+         class="block text-center w-full py-2.5 rounded-lg text-sm font-bold shadow-sm border hover:bg-[color:var(--echo-surface)] transition-colors"
+         style="border-color: var(--echo-border); color: var(--echo-deep);">
+        Request a new link
+      </a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
