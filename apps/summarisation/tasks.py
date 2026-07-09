@@ -3,7 +3,7 @@ import logging
 from django.conf import settings
 from celery import shared_task
 import anthropic
-from google import genai as google_genai
+import google.generativeai as genai
 from groq import Groq
 from apps.uploads.models import Session
 from apps.transcription.models import Transcript
@@ -56,11 +56,9 @@ def _generate_text_waterfall(prompt, max_tokens, temperature=1.0):
     gemini_api_key = os.environ.get('GEMINI_API_KEY')
     if gemini_api_key:
         try:
-            client = google_genai.Client(api_key=gemini_api_key)
-            response = client.models.generate_content(
-                model='gemini-1.5-pro',
-                contents=[{"role": "user", "parts": [{"text": prompt}]}],
-            )
+            genai.configure(api_key=gemini_api_key)
+            model = genai.GenerativeModel('gemini-1.5-pro')
+            response = model.generate_content(prompt, generation_config=genai.types.GenerationConfig(temperature=temperature))
             return response.text
         except Exception as e:
             logger.warning(f"Gemini API failed: {e}.")
