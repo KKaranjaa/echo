@@ -163,6 +163,8 @@ ACCOUNT_EMAIL_SUBJECT_PREFIX = "[ECHO] "
 
 # We want users to log in directly after signing up
 LOGIN_REDIRECT_URL = "/dashboard/"
+LOGIN_URL = "/accounts/login/"
+ACCOUNT_SIGNUP_REDIRECT_URL = "/dashboard/"  # Skip verification page, go straight to dashboard
 LOGOUT_REDIRECT_URL = "/"
 
 # Email backend configuration (Fallback to console for now)
