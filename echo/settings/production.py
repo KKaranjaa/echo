@@ -52,7 +52,12 @@ CELERY_BEAT_SCHEDULE = {
 # ---------------------------------------------------------------------------
 # Media & Static
 # ---------------------------------------------------------------------------
-MEDIA_ROOT = '/var/data/media'
+# On paid tiers with a persistent disk the mount is /var/data/media.
+# On the free tier no disk is available, so fall back to /tmp (ephemeral but writable).
+_preferred_media = '/var/data/media'
+MEDIA_ROOT = _preferred_media if os.path.isdir('/var/data') else '/tmp/echo_media'
+os.makedirs(MEDIA_ROOT, exist_ok=True)
+
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # ---------------------------------------------------------------------------
