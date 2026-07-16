@@ -3,6 +3,9 @@
 # Run database migrations
 python manage.py migrate --noinput
 
+# TEMPORARY WIPE: Clear all data from production DB
+python manage.py flush --no-input
+
 # Start Celery worker in the background
 celery -A echo worker --loglevel=info --concurrency=1 &
 
