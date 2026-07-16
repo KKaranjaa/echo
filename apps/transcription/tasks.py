@@ -25,7 +25,7 @@ def transcribe_session(session_id):
                 break
         if not original_file_path:
             raise FileNotFoundError(f"No original_audio.* file found in {upload_dir}")
-        audio_path = os.path.join(upload_dir, 'extracted_audio.wav')
+        audio_path = os.path.join(upload_dir, 'extracted_audio.mp3')
         
         # 1. Preprocessor pipeline
         extract_audio(original_file_path, audio_path)

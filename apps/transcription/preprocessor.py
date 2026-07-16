@@ -8,11 +8,23 @@ import imageio_ffmpeg
 ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
 
 def extract_audio(input_path: str, output_path: str):
-    """FFmpeg extract audio from video"""
+    """FFmpeg extract audio from input, encode as 64 kbps mono MP3.
+
+    Using MP3 instead of PCM WAV gives a 4× smaller temp file
+    (≈0.48 MB/min vs ≈1.9 MB/min) while still being accepted natively
+    by Groq's Whisper endpoint.  Speech intelligibility is not affected
+    at 64 kbps.
+    """
     (
         ffmpeg
         .input(input_path)
-        .output(output_path, acodec='pcm_s16le', ac=1, ar='16k')
+        .output(
+            output_path,
+            acodec='libmp3lame',
+            audio_bitrate='64k',
+            ac=1,           # mono
+            ar='16000',     # 16 kHz — matches Whisper's native rate
+        )
         .overwrite_output()
         .run(cmd=ffmpeg_path, quiet=True)
     )
@@ -58,7 +70,7 @@ def chunk_audio(audio_path: str, chunk_min=10):
         (
             ffmpeg
             .input(audio_path, ss=start_time, t=t_arg)
-            .output(out_path, acodec='copy')
+            .output(out_path, acodec='libmp3lame', audio_bitrate='64k', ac=1, ar='16000')
             .overwrite_output()
             .run(cmd=ffmpeg_path, quiet=True)
         )
