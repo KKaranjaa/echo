@@ -20,10 +20,7 @@ services:
         sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
-    disk:
-      name: media
-      mountPath: /var/data/media
-      sizeGB: 10
+
 
 
 
