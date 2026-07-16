@@ -10,4 +10,4 @@ celery -A echo worker --loglevel=info --concurrency=1 &
 celery -A echo beat --loglevel=info &
 
 # Start Gunicorn in the foreground
-exec gunicorn echo.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+exec gunicorn echo.wsgi:application --bind 0.0.0.0:$PORT --workers 1 --timeout 120
