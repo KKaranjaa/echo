@@ -50,7 +50,9 @@ from django.conf import settings
 from apps.uploads.views import serve_media_with_range
 from django.urls import re_path
 
-if settings.DEBUG:
-    urlpatterns += [
-        re_path(r'^media/(?P<path>.*)$', serve_media_with_range),
-    ]
+# Serve media files directly using the custom range-request view.
+# We do this unconditionally (not just in DEBUG) because on Render
+# we use the ephemeral/persistent disk without a separate web server for media.
+urlpatterns += [
+    re_path(r'^media/(?P<path>.*)$', serve_media_with_range),
+]
