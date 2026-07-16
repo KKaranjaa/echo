@@ -1,9 +1,8 @@
 services:
   - type: web
     name: echo-web
-    env: python
-    buildCommand: "./build.sh"
-    startCommand: "gunicorn echo.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
+    env: docker
+    dockerCommand: "gunicorn echo.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -27,9 +26,8 @@ services:
 
   - type: worker
     name: echo-celery
-    env: python
-    buildCommand: "./build.sh"
-    startCommand: "celery -A echo worker --loglevel=info --concurrency=2"
+    env: docker
+    dockerCommand: "celery -A echo worker --loglevel=info --concurrency=2"
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -49,9 +47,8 @@ services:
 
   - type: worker
     name: echo-celery-beat
-    env: python
-    buildCommand: "./build.sh"
-    startCommand: "celery -A echo beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
+    env: docker
+    dockerCommand: "celery -A echo beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler"
     envVars:
       - key: DATABASE_URL
         fromDatabase:

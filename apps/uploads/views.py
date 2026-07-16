@@ -5,7 +5,7 @@ import mimetypes
 from django.conf import settings
 from django.shortcuts import render, redirect
 from django.http import HttpResponseBadRequest, StreamingHttpResponse, Http404, JsonResponse
-from django.views.decorators.http import require_POST, require_GET
+from django.views.decorators.http import require_POST, require_safe
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 from django.core.files.storage import FileSystemStorage
 from .models import Session
@@ -67,7 +67,7 @@ ALLOWED_EXTENSIONS = {
 MAX_UPLOAD_SIZE = 1024 * 1024 * 1024  # 1 GB
 
 @ensure_csrf_cookie
-@require_GET
+@require_safe
 def home(request):
     """Render the main upload page."""
     return render(request, 'uploads/upload_zone.html')

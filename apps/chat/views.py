@@ -11,7 +11,7 @@ from .models import ChatMessage
 from .rag import retrieve_relevant_chunks
 from groq import Groq
 import anthropic
-import google.generativeai as genai
+from google import genai
 
 SYSTEM_PROMPT_TEMPLATE = """You are ECHO, an AI academic assistant. You have access to the transcript,
 summary, and key points from a specific lecture or study session.
@@ -164,22 +164,36 @@ def chat_api(request, session_id):
         gemini_api_key = os.environ.get('GEMINI_API_KEY')
         if gemini_api_key:
             try:
-                genai.configure(api_key=gemini_api_key)
-                model = genai.GenerativeModel('gemini-1.5-pro', system_instruction=system_prompt)
+                client = genai.Client(api_key=gemini_api_key)
                 
                 # Gemini handles history differently (user/model)
                 gemini_history = []
                 for m in messages[:-1]:  # Exclude current message
                     role = 'model' if m['role'] == 'assistant' else 'user'
-                    gemini_history.append({"role": role, "parts": [m['content']]})
+                    gemini_history.append({"role": role, "parts": [{"text": m['content']}]})
                 
-                chat = model.start_chat(history=gemini_history)
-                response = chat.send_message(user_message, stream=True)
+                chat = client.chats.create(
+                    model='gemini-2.5-flash',
+                    config=dict(
+                        system_instruction=system_prompt,
+                    )
+                )
+                
+                # Preload the history into the chat object if it supports it, 
+                # but the genai package `chats.create` allows passing history.
+                chat = client.chats.create(
+                    model='gemini-2.5-flash',
+                    history=gemini_history,
+                    config=dict(system_instruction=system_prompt)
+                )
+
+                response = chat.send_message_stream(user_message)
                 
                 for chunk in response:
                     text = chunk.text
-                    full_response.append(text)
-                    yield f"data: {json.dumps({'chunk': text})}\n\n"
+                    if text:
+                        full_response.append(text)
+                        yield f"data: {json.dumps({'chunk': text})}\n\n"
                     
                 assistant_text = "".join(full_response)
                 ChatMessage.objects.create(session=session, role='assistant', content=assistant_text)
