@@ -52,15 +52,16 @@ def _generate_text_waterfall(prompt, max_tokens, temperature=1.0):
         except Exception as e:
             logger.warning(f"Anthropic API failed: {e}. Falling back to Gemini...")
 
-    # 3. FALLBACK TO GEMINI
+    # 3. FALLBACK TO GEMini
     gemini_api_key = os.environ.get('GEMINI_API_KEY')
     if gemini_api_key:
         try:
+            from google.genai import types
             client = genai.Client(api_key=gemini_api_key)
             response = client.models.generate_content(
-                model='gemini-1.5-flash',
+                model='gemini-1.5-pro',
                 contents=prompt,
-                config=dict(temperature=temperature)
+                config=types.GenerateContentConfig(temperature=temperature)
             )
             return response.text
         except Exception as e:
