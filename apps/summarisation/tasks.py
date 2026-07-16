@@ -17,16 +17,31 @@ logger = logging.getLogger(__name__)
 
 GROQ_MODEL = "llama-3.3-70b-versatile"  # Free tier, 32k context
 
+def _get_api_keys(prefix):
+    keys = []
+    primary = os.environ.get(prefix)
+    if primary:
+        keys.append(primary)
+    i = 2
+    while True:
+        backup = os.environ.get(f"{prefix}_{i}")
+        if backup:
+            keys.append(backup)
+            i += 1
+        else:
+            break
+    return keys
+
 def _generate_text_waterfall(prompt, max_tokens, temperature=1.0):
     """
     Attempts to generate text using Groq first, then Anthropic, then Gemini.
+    Iterates through backup API keys (e.g. GROQ_API_KEY_2) if one is rate-limited.
     Returns the raw string response. Raises Exception if all fail.
     """
     # 1. TRY GROQ
-    groq_api_key = os.environ.get('GROQ_API_KEY')
-    if groq_api_key:
-        client = Groq(api_key=groq_api_key)
+    for api_key in _get_api_keys('GROQ_API_KEY'):
         try:
+            client = Groq(api_key=api_key)
             response = client.chat.completions.create(
                 model=GROQ_MODEL,
                 messages=[{"role": "user", "content": prompt}],
@@ -35,13 +50,15 @@ def _generate_text_waterfall(prompt, max_tokens, temperature=1.0):
             )
             return response.choices[0].message.content
         except Exception as e:
-            logger.warning(f"Groq API failed: {e}. Falling back to Anthropic...")
+            logger.warning(f"Groq API failed with key (ending in ...{api_key[-4:] if api_key else 'None'}): {e}. Trying next...")
+            continue
+            
+    logger.warning("All Groq keys failed. Falling back to Anthropic...")
 
     # 2. FALLBACK TO ANTHROPIC
-    anthropic_api_key = os.environ.get('ANTHROPIC_API_KEY')
-    if anthropic_api_key:
+    for api_key in _get_api_keys('ANTHROPIC_API_KEY'):
         try:
-            client = anthropic.Anthropic(api_key=anthropic_api_key)
+            client = anthropic.Anthropic(api_key=api_key)
             response = client.messages.create(
                 model="claude-3-5-sonnet-20241022",
                 max_tokens=max_tokens,
@@ -50,14 +67,16 @@ def _generate_text_waterfall(prompt, max_tokens, temperature=1.0):
             )
             return response.content[0].text
         except Exception as e:
-            logger.warning(f"Anthropic API failed: {e}. Falling back to Gemini...")
+            logger.warning(f"Anthropic API failed with key (ending in ...{api_key[-4:] if api_key else 'None'}): {e}. Trying next...")
+            continue
+
+    logger.warning("All Anthropic keys failed. Falling back to Gemini...")
 
     # 3. FALLBACK TO GEMINI
-    gemini_api_key = os.environ.get('GEMINI_API_KEY')
-    if gemini_api_key:
+    for api_key in _get_api_keys('GEMINI_API_KEY'):
         try:
             from google.genai import types
-            client = genai.Client(api_key=gemini_api_key, http_options={'api_version': 'v1'})
+            client = genai.Client(api_key=api_key, http_options={'api_version': 'v1'})
             response = client.models.generate_content(
                 model='gemini-2.0-flash',
                 contents=prompt,
@@ -65,9 +84,10 @@ def _generate_text_waterfall(prompt, max_tokens, temperature=1.0):
             )
             return response.text
         except Exception as e:
-            logger.warning(f"Gemini API failed: {e}.")
+            logger.warning(f"Gemini API failed with key (ending in ...{api_key[-4:] if api_key else 'None'}): {e}. Trying next...")
+            continue
 
-    raise RuntimeError("All AI providers failed or no API keys configured.")
+    raise RuntimeError("All AI providers and backup keys failed or no API keys configured.")
 
 
 @shared_task

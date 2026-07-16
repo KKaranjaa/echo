@@ -33,15 +33,25 @@ class GroqEngine(BaseASREngine):
         # on slower network connections without timing out during the SSL handshake or upload.
         self.client = Groq(api_key=api_key, timeout=300.0)
 
+    def _get_api_keys(self):
+        keys = []
+        primary = getattr(settings, "GROQ_API_KEY", None) or os.environ.get("GROQ_API_KEY")
+        if primary:
+            keys.append(primary)
+        i = 2
+        while True:
+            backup = os.environ.get(f"GROQ_API_KEY_{i}")
+            if backup:
+                keys.append(backup)
+                i += 1
+            else:
+                break
+        return keys
+
     def transcribe(self, audio_path: str) -> dict:
         """
         Send the audio file to Groq's Whisper large-v3 endpoint.
-
-        Returns the standard BaseASREngine dict:
-          { 'text': str, 'word_timestamps': [...], 'language': str }
-
-        Note: Groq's API returns word-level timestamps via the verbose_json
-        response format.
+        Rotates through backup API keys (e.g. GROQ_API_KEY_2) if one fails.
         """
         file_size = os.path.getsize(audio_path)
         if file_size > GROQ_MAX_FILE_BYTES:
@@ -52,22 +62,50 @@ class GroqEngine(BaseASREngine):
             )
 
         import time
-        max_attempts = 4
-        for attempt in range(max_attempts):
-            try:
-                with open(audio_path, "rb") as audio_file:
-                    transcription = self.client.audio.transcriptions.create(
-                        file=(os.path.basename(audio_path), audio_file),
-                        model="whisper-large-v3",
-                        response_format="verbose_json",
-                        timestamp_granularities=["word"],
-                    )
-                break  # Success
-            except Exception as e:
-                if attempt == max_attempts - 1:
-                    raise
-                logger.warning(f"Groq API error on {audio_path} (attempt {attempt + 1}/{max_attempts}): {e}. Retrying in 5 seconds...")
-                time.sleep(5)
+        from groq import Groq
+        
+        api_keys = self._get_api_keys()
+        if not api_keys:
+            raise RuntimeError("No GROQ_API_KEY configured.")
+            
+        transcription = None
+        last_exception = None
+        
+        for api_key in api_keys:
+            client = Groq(api_key=api_key, timeout=300.0)
+            max_attempts = 4
+            success = False
+            
+            for attempt in range(max_attempts):
+                try:
+                    with open(audio_path, "rb") as audio_file:
+                        transcription = client.audio.transcriptions.create(
+                            file=(os.path.basename(audio_path), audio_file),
+                            model="whisper-large-v3",
+                            response_format="verbose_json",
+                            timestamp_granularities=["word"],
+                        )
+                    success = True
+                    break  # Success
+                except Exception as e:
+                    last_exception = e
+                    # If it's a rate limit or auth error, don't wait for 4 attempts, just jump to the next key
+                    if "429" in str(e) or "401" in str(e):
+                        logger.warning(f"Groq API error on {audio_path} with key (ending in ...{api_key[-4:]}): {e}. Rotating to next API key...")
+                        break 
+                    
+                    if attempt == max_attempts - 1:
+                        logger.warning(f"Groq API error on {audio_path} with key (ending in ...{api_key[-4:]}) after {max_attempts} attempts: {e}. Rotating to next API key...")
+                        break
+                        
+                    logger.warning(f"Groq API error on {audio_path} (attempt {attempt + 1}/{max_attempts}): {e}. Retrying same key in 5 seconds...")
+                    time.sleep(5)
+            
+            if success:
+                break
+                
+        if not transcription:
+            raise RuntimeError(f"All Groq API keys failed. Last error: {last_exception}")
 
         # Parse word-level timestamps from Groq's response.
         # Groq may return words as plain dicts or as objects depending on SDK version.
