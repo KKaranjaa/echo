@@ -6,7 +6,7 @@ yt-dlp is imported INSIDE this module only, so a missing installation
 cannot prevent Django startup or the direct upload feature from working.
 """
 import os
-import uuid
+import base64
 import logging
 import tempfile
 import shutil
@@ -15,6 +15,33 @@ from celery import shared_task
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
+
+
+def _get_cookies_file():
+    """
+    Write the YOUTUBE_COOKIES_CONTENT env var (base64-encoded cookies.txt)
+    to a temporary file and return its path.
+    Returns None if the variable is not set.
+    The caller is responsible for deleting the file when done.
+    """
+    cookies_b64 = os.environ.get('YOUTUBE_COOKIES_CONTENT', '').strip()
+    if not cookies_b64:
+        return None
+    try:
+        cookies_content = base64.b64decode(cookies_b64).decode('utf-8')
+        tmp = tempfile.NamedTemporaryFile(
+            mode='w',
+            suffix='.txt',
+            delete=False,
+            prefix='yt_cookies_'
+        )
+        tmp.write(cookies_content)
+        tmp.close()
+        logger.debug("YouTube cookies file written to %s", tmp.name)
+        return tmp.name
+    except Exception as e:
+        logger.warning("Failed to decode YOUTUBE_COOKIES_CONTENT: %s", e)
+        return None
 
 # ── Limits (sourced from the authoritative locations) ────────────────────────
 # Size limit: imported from uploads.views (single source of truth)
@@ -105,6 +132,7 @@ def _run_fetch(session, url):
         # Use yt-dlp to fetch metadata without downloading
         import yt_dlp
 
+        cookies_file = _get_cookies_file()
         ydl_opts = {
             'skip_download': True,
             'quiet': True,
@@ -113,12 +141,12 @@ def _run_fetch(session, url):
             'socket_timeout': 120,
             'extractor_args': {
                 'youtube': {
-                    # tv_embedded and ios clients bypass YouTube bot-detection
-                    # without needing browser cookies
                     'player_client': ['tv_embedded', 'ios', 'android', 'web']
                 }
             },
         }
+        if cookies_file:
+            ydl_opts['cookiefile'] = cookies_file
 
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -235,6 +263,7 @@ def _download_yt_dlp(url, tmp_dir, upload_dir, session):
     # yt-dlp writes to tmp_dir, then we move the result to upload_dir
     tmp_output_template = os.path.join(tmp_dir, 'media.%(ext)s')
 
+    cookies_file = _get_cookies_file()
     ydl_opts = {
         'format': 'bestaudio/best',      # prefer audio-only — much smaller than video+audio
         'outtmpl': tmp_output_template,
@@ -248,12 +277,12 @@ def _download_yt_dlp(url, tmp_dir, upload_dir, session):
         'http_chunk_size': 1024 * 1024,
         'extractor_args': {
             'youtube': {
-                # tv_embedded and ios clients bypass YouTube bot-detection
-                # without needing browser cookies
                 'player_client': ['tv_embedded', 'ios', 'android', 'web']
             }
         },
     }
+    if cookies_file:
+        ydl_opts['cookiefile'] = cookies_file
 
     ext = '.mp4'  # Fallback
     try:
@@ -274,6 +303,13 @@ def _download_yt_dlp(url, tmp_dir, upload_dir, session):
             logger.error("yt-dlp DownloadError (download stage): %s", str(e), exc_info=True)
             _set_failed(session, "Media download failed. Please try again or upload the file directly.")
         return ext
+    finally:
+        # Always clean up the temp cookies file after download attempt
+        if cookies_file and os.path.exists(cookies_file):
+            try:
+                os.remove(cookies_file)
+            except Exception:
+                pass
 
     # Find the output file and determine its actual extension
     downloaded = None
