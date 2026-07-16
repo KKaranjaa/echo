@@ -159,9 +159,9 @@
       </div>
     </div>
 
-    {% if session.status == 'failed' or not transcript %}
+    {% if session.status == 'failed' %}
     {# ── Error state ──────────────────────────────────────────────────────── #}
-    <div class="echo-card p-8 text-center max-w-lg mx-auto">
+    <div class="echo-glass p-8 text-center max-w-lg mx-auto">
       <div class="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
         style="background:rgba(239,68,68,0.1);">
         <svg class="w-7 h-7 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -176,6 +176,19 @@
       <a href="/"
         class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-white text-sm transition-all hover:opacity-90"
         style="background:var(--echo-accent);">Try Again</a>
+    </div>
+
+    {% elif not transcript %}
+    {# ── Processing state ─────────────────────────────────────────────────── #}
+    <meta http-equiv="refresh" content="3">
+    <div class="echo-glass p-8 text-center max-w-lg mx-auto mt-10">
+      <div class="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-6">
+        <div style="width:36px;height:36px;border:3px solid rgba(192,132,252,0.2);border-top-color:var(--echo-accent);border-radius:50%;animation:echo-spin 0.8s linear infinite;"></div>
+      </div>
+      <h2 class="text-xl font-bold mb-2" style="color:var(--echo-deep);">Processing in Background</h2>
+      <p class="text-sm mb-6" style="color:var(--echo-muted);">
+        ECHO is currently transcribing and summarizing your session.<br>This page will automatically refresh every few seconds.
+      </p>
     </div>
 
     {% else %}
@@ -201,7 +214,7 @@
 
 
         {% if summary.strict_exam_flags %}
-        <section class="echo-card p-6" aria-labelledby="strict-flags-heading"
+        <section class="echo-glass p-6" aria-labelledby="strict-flags-heading"
           style="border: 1px solid rgba(245,158,11,0.3); background: linear-gradient(145deg, rgba(245,158,11,0.05) 0%, rgba(245,158,11,0.01) 100%);">
           <div class="flex items-center gap-2 mb-4">
             <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(245,158,11,0.15);">
@@ -237,7 +250,7 @@
         </section>
         {% endif %}
 
-        <section class="echo-card p-6" aria-labelledby="summary-heading">
+        <section class="echo-glass p-6" aria-labelledby="summary-heading">
           <div class="flex items-center gap-2 mb-4">
             <div class="w-8 h-8 rounded-lg flex items-center justify-center"
               style="background:var(--echo-accent-soft);">
@@ -253,7 +266,7 @@
         </section>
 
         {% if summary.key_points %}
-        <section class="echo-card p-6" aria-labelledby="keypoints-heading">
+        <section class="echo-glass p-6" aria-labelledby="keypoints-heading">
           <div class="flex items-center gap-2 mb-4">
             <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(16,185,129,0.12);">
               <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -277,7 +290,7 @@
         {% endif %}
 
         {% if summary.flashcards %}
-        <section class="echo-card p-6" aria-labelledby="flashcards-heading">
+        <section class="echo-glass p-6" aria-labelledby="flashcards-heading">
           <div class="flex items-center gap-2 mb-5">
             <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(192,132,252,0.15);">
               <svg class="w-4 h-4" style="color:var(--echo-accent);" fill="none" stroke="currentColor"
@@ -313,7 +326,7 @@
         {% endif %}
 
         {% if summary.exam_flags %}
-        <section class="echo-card p-6" aria-labelledby="flags-heading">
+        <section class="echo-glass p-6" aria-labelledby="flags-heading">
           <div class="flex items-center gap-2 mb-4">
             <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(245,158,11,0.12);">
               <svg class="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -335,7 +348,7 @@
         {% endif %}
 
         {% if summary.action_items %}
-        <section class="echo-card p-6" aria-labelledby="actions-heading">
+        <section class="echo-glass p-6" aria-labelledby="actions-heading">
           <div class="flex items-center gap-2 mb-4">
             <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:rgba(16,185,129,0.1);">
               <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -365,7 +378,7 @@
         {% endif %}
 
         {% if summary.starter_questions %}
-        <section class="echo-card p-6" aria-labelledby="questions-heading">
+        <section class="echo-glass p-6" aria-labelledby="questions-heading">
           <div class="flex items-center gap-2 mb-4">
             <div class="w-8 h-8 rounded-lg flex items-center justify-center"
               style="background:var(--echo-accent-soft);">
@@ -389,7 +402,7 @@
         {% endif %}
 
         {% else %}
-        <div class="echo-card p-8 text-center">
+        <div class="echo-glass p-8 text-center">
           <p class="text-sm" style="color:var(--echo-muted);">Summary is not yet available for this session.</p>
         </div>
         {% endif %}
@@ -402,7 +415,7 @@
            _scrollToBottom() { $refs.transcriptBox.scrollTo({ top: $refs.transcriptBox.scrollHeight, behavior: 'smooth' }); }
          }"
         x-init="$nextTick(() => { if($refs.transcriptBox) showScrollButtons = $refs.transcriptBox.scrollHeight > $refs.transcriptBox.clientHeight; })">
-        <section class="echo-card flex flex-col relative"
+        <section class="echo-glass flex flex-col relative"
           style="height: calc(100vh - 10rem); position: sticky; top: 1rem;" aria-labelledby="transcript-heading">
           <div class="flex items-center gap-2 p-6 pb-3 border-b border-[color:var(--echo-border)]">
             <div class="w-8 h-8 rounded-lg flex items-center justify-center" style="background:var(--echo-surface);">
@@ -488,7 +501,7 @@
         {# ──────────────────────────────────────────────── #}
         {# FULL PiP card — independent position, draggable #}
         <section id="media-player-card"
-                 class="echo-card overflow-hidden flex flex-col transition-shadow duration-300 transform"
+                 class="echo-glass overflow-hidden flex flex-col transition-shadow duration-300 transform"
                  aria-label="Media Player"
                  x-show="!isPip || !pipMinimized"
                  x-transition.scale.origin.bottom.right
