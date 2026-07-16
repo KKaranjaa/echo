@@ -60,11 +60,11 @@ services:
           name: echo-redis
           property: connectionString
 
-  - type: pserv
-    name: echo-db
-    env: postgres
-    plan: free
-
   - type: redis
     name: echo-redis
+    plan: free
+    ipAllowList: []
+
+databases:
+  - name: echo-db
     plan: free
