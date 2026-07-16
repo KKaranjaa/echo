@@ -53,10 +53,19 @@ CELERY_BEAT_SCHEDULE = {
 # Media & Static
 # ---------------------------------------------------------------------------
 # On paid tiers with a persistent disk the mount is /var/data/media.
-# On the free tier no disk is available, so fall back to /tmp (ephemeral but writable).
+# On the free tier no disk is available, so fall back to an app-local folder.
+# DO NOT USE /tmp on Render free tier — it can be mapped to tmpfs (RAM),
+# causing uploads to instantly trigger an OOM kill.
 _preferred_media = '/var/data/media'
-MEDIA_ROOT = _preferred_media if os.path.isdir('/var/data') else '/tmp/echo_media'
+if os.path.isdir('/var/data'):
+    MEDIA_ROOT = _preferred_media
+else:
+    MEDIA_ROOT = str(BASE_DIR / '.ephemeral_media')
+
 os.makedirs(MEDIA_ROOT, exist_ok=True)
+
+# Also ensure Django streams file uploads to this SSD directory, not /tmp
+FILE_UPLOAD_TEMP_DIR = MEDIA_ROOT
 
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
