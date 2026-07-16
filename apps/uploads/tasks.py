@@ -24,3 +24,8 @@ def cleanup_expired_sessions():
         count += 1
     expired.delete()
     logger.info(f'Cleaned {count} sessions, freed {freed_bytes // (1024*1024)} MB')
+
+
+# Re-export so Celery autodiscover (which only scans tasks.py) picks up
+# the fetch_external_audio task defined in fetch_task.py
+from .fetch_task import fetch_external_audio  # noqa: F401, E402

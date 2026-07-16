@@ -41,6 +41,16 @@ class Session(models.Model):
     def audio_url(self):
         import os
         from django.conf import settings
+        upload_dir = os.path.join(settings.MEDIA_ROOT, 'uploads', str(self.id))
+        try:
+            # Scan for the actual file on disk (extension may differ from original_filename
+            # e.g. yt-dlp downloads as .webm but original_filename ends in .mp4)
+            for fname in os.listdir(upload_dir):
+                if fname.startswith('original_audio'):
+                    return f"{settings.MEDIA_URL}uploads/{self.id}/{fname}"
+        except Exception:
+            pass
+        # Fallback: derive from original_filename
         try:
             ext = os.path.splitext(self.original_filename)[1].lower()
             return f"{settings.MEDIA_URL}uploads/{self.id}/original_audio{ext}"
