@@ -277,7 +277,7 @@ def _download_yt_dlp(url, tmp_dir, upload_dir, session):
         'http_chunk_size': 1024 * 1024,
         'extractor_args': {
             'youtube': {
-                'player_client': ['tv_embedded', 'ios', 'android', 'web']
+                'player_client': ['android', 'ios', 'mweb']
             }
         },
     }
