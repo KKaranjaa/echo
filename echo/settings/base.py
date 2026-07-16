@@ -117,6 +117,15 @@ MEDIA_ROOT = BASE_DIR / "mediafiles"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # ---------------------------------------------------------------------------
+# Upload size limits (match view-level MAX_UPLOAD_SIZE)
+# ---------------------------------------------------------------------------
+# Django streams files > FILE_UPLOAD_MAX_MEMORY_SIZE to a temp file on disk
+# rather than holding the whole thing in RAM. Set this low (5MB) so large
+# uploads are always streamed to /tmp rather than buffered in memory.
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024   # 5 MB threshold → stream to disk
+DATA_UPLOAD_MAX_MEMORY_SIZE = 210 * 1024 * 1024  # 210 MB hard ceiling for entire request body
+
+# ---------------------------------------------------------------------------
 # Celery
 # ---------------------------------------------------------------------------
 CELERY_BROKER_URL = os.environ.get("REDIS_URL", "redis://redis:6379/0")

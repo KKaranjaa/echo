@@ -3,11 +3,8 @@
 # Run database migrations
 python manage.py migrate --noinput
 
-# Start Celery worker in the background
-celery -A echo worker --loglevel=info --concurrency=1 &
+# Start Celery worker in the background (concurrency=1 to limit RAM)
+celery -A echo worker --loglevel=warning --concurrency=1 &
 
-# Start Celery beat in the background
-celery -A echo beat --loglevel=info &
-
-# Start Gunicorn in the foreground
+# Start Gunicorn in the foreground (1 worker to stay under 512MB free tier)
 exec gunicorn echo.wsgi:application --bind 0.0.0.0:$PORT --workers 1 --timeout 120

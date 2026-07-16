@@ -16,10 +16,15 @@ def transcribe_session(session_id):
         session.status = 'transcribing'
         session.save()
 
-        # Reconstruct paths
+        # Reconstruct paths — scan disk for actual file (extension may differ from original_filename)
         upload_dir = os.path.join(settings.MEDIA_ROOT, 'uploads', str(session.id))
-        ext = os.path.splitext(session.original_filename)[1].lower()
-        original_file_path = os.path.join(upload_dir, f"original_audio{ext}")
+        original_file_path = None
+        for fname in os.listdir(upload_dir):
+            if fname.startswith('original_audio'):
+                original_file_path = os.path.join(upload_dir, fname)
+                break
+        if not original_file_path:
+            raise FileNotFoundError(f"No original_audio.* file found in {upload_dir}")
         audio_path = os.path.join(upload_dir, 'extracted_audio.wav')
         
         # 1. Preprocessor pipeline
@@ -77,8 +82,19 @@ def transcribe_session(session_id):
         for word_list in all_words:
             if word_list:
                 flattened_words.extend(word_list)
-        
-        # 3. Save Transcript to DB
+
+        # 3a. Clean up large temp files immediately to free /tmp space on Render
+        try:
+            if os.path.exists(audio_path):
+                os.remove(audio_path)
+            for chunk_path in chunks:
+                if chunk_path != audio_path and os.path.exists(chunk_path):
+                    os.remove(chunk_path)
+            logger.info(f"Cleaned up temp audio files for session {session_id}")
+        except Exception as cleanup_err:
+            logger.warning(f"Failed to clean up temp files: {cleanup_err}")
+
+        # 3b. Save Transcript to DB
         Transcript.objects.create(
             session=session,
             raw_text=" ".join(filter(None, all_text)).strip(),

@@ -64,7 +64,10 @@ ALLOWED_EXTENSIONS = {
     '.mp3', '.mp4', '.mpeg', '.mpga', '.m4a', '.wav', '.webm', 
     '.ogg', '.oga', '.flac', '.mov', '.avi', '.mkv'
 }
-MAX_UPLOAD_SIZE = 1024 * 1024 * 1024  # 1 GB
+# Free-tier Render has 512MB RAM — cap direct uploads at 200MB.
+# For yt-dlp downloads we only fetch audio-only anyway, so this limit
+# only applies to files dragged & dropped by the user.
+MAX_UPLOAD_SIZE = 200 * 1024 * 1024  # 200 MB
 
 @ensure_csrf_cookie
 @require_safe
