@@ -5,7 +5,7 @@ import mimetypes
 from django.conf import settings
 from django.shortcuts import render, redirect
 from django.http import HttpResponseBadRequest, StreamingHttpResponse, Http404, JsonResponse
-from django.views.decorators.http import require_POST, require_safe, require_GET
+from django.views.decorators.http import require_POST, require_safe
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 from django.core.files.storage import FileSystemStorage
 from .models import Session
@@ -118,9 +118,7 @@ def upload_file(request):
     # Tell HTMX to do a full redirect (not a partial swap)
     response['HX-Redirect'] = f'/results/{session.id}/'
     return response
-#add the effect to these sections.
-#Ask ECHO
-#AI assistant for this session section, summary, keypoints, flashcards holder, action items, ask about this, full transcript.  and ensure uniformity
+
 
 
 # ── NEW: External URL ingestion endpoints ────────────────────────────────────
