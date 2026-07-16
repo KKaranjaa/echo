@@ -130,8 +130,7 @@
               class="inline-flex items-center gap-1.5 text-xs font-mono px-2.5 py-1 rounded-full
                        {% if session.status == 'complete' %}text-emerald-700{% elif session.status == 'failed' %}text-red-600{% else %}text-amber-600{% endif %}"
               style="background:var(--echo-surface);">
-              {% if session.status == 'complete' %}✓ Complete{% elif session.status == 'failed' %}✗ Failed{% else %}{{
-              session.status }}{% endif %}
+              {% if session.status == 'complete' %}✓ Complete{% elif session.status == 'failed' %}✗ Failed{% else %}{{ session.status }}{% endif %}
             </span>
             {% if session.source_url %}
             <a href="{{ session.source_url }}" target="_blank" rel="noopener noreferrer"
@@ -178,7 +177,7 @@
         style="background:var(--echo-accent);">Try Again</a>
     </div>
 
-    {% elif not transcript %}
+    {% elif session.status != 'complete' %}
     {# ── Processing state ─────────────────────────────────────────────────── #}
     <meta http-equiv="refresh" content="3">
     <div class="echo-glass p-8 text-center max-w-lg mx-auto mt-10">
