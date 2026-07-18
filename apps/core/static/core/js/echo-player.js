@@ -19,6 +19,7 @@ window.echoMediaPlayer = function (audioUrl, transcriptWords = []) {
     isPip: false,
     pipMinimized: false,
     forceHidePip: false,
+    forceMobileMinimize: false, // New manual toggle for mobile
     // Drag state for full PiP card
     pipDragX: null,
     pipDragY: null,

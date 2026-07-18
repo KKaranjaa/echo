@@ -1,16 +1,19 @@
 <div id="processing-panel" 
      class="echo-glass p-8 w-full max-w-2xl mx-auto"
-     hx-get="/status/{{ session.id }}/" 
-     hx-trigger="every 2s" 
+     {% if session.status not in 'complete,failed' %}
+     hx-get="/results/{{ session.id }}/"
+     hx-trigger="every 3s"
      hx-target="#processing-panel"
-     hx-swap="outerHTML">
+     hx-swap="outerHTML"
+     hx-select="#processing-panel"
+     {% endif %}>
 
   
   <!-- Header: File info -->
   <div class="mb-8 pb-6 border-b border-[color:var(--echo-border)] flex flex-col gap-2">
     <h2 class="text-xl font-bold truncate" style="color: var(--echo-deep);">{{ session.original_filename }}</h2>
     <div class="flex items-center gap-3 text-sm font-medium" style="color: var(--echo-muted);">
-      <span>File processing</span>
+      <span>{% if session.source_url %}Link processing{% else %}File processing{% endif %}</span>
       {% if session.duration_seconds %}
         <span class="w-1 h-1 rounded-full bg-current"></span>
         <span>{{ session.duration_seconds }}s</span>
@@ -35,6 +38,7 @@
         <li>The audio might be completely silent or contain no speech.</li>
         <li>The file might be corrupted or in an unsupported codec (we support MP4, MP3, WAV, M4A).</li>
         <li>The recording might be too short (under 5 seconds) to be transcribed.</li>
+        <li>For YouTube links: the video may be age-restricted, private, or region-blocked.</li>
       </ul>
     </details>
 
@@ -42,22 +46,48 @@
       Try again with a different file
     </a>
   </div>
+
+  {% elif session.status == 'complete' %}
+  {# ── Complete: redirect immediately ──────────────────────────────────── #}
+  <div class="text-center py-6">
+    <div class="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
+         style="background: rgba(16,185,129,0.12);">
+      <svg class="w-7 h-7 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+      </svg>
+    </div>
+    <p class="text-sm font-semibold" style="color: var(--echo-muted);">Complete! Loading results…</p>
+  </div>
+  <script>window.location.href = "/results/{{ session.id }}/";</script>
+
   {% else %}
 
-  <!-- Stepper Pipeline -->
+  <!-- Stepper Pipeline — steps match real Celery task statuses -->
   <div class="flex flex-col gap-8 relative pl-2">
     <!-- Connecting line behind steps -->
     <div class="absolute left-[19px] top-4 bottom-4 w-[2px] bg-[color:var(--echo-border)] z-0"></div>
 
-    <!-- Step 1: Extracting audio -->
+    {# ── Determine which step is active based on real backend status ── #}
+    {% with st=session.status %}
+
+    <!-- Step 1: Fetching info (only for URL sessions) / Uploading (for direct file uploads) -->
     <div class="relative z-10 flex items-center gap-4 step-row" data-step="1">
-      {% if session.status == 'uploading' or session.status == 'extracting' %}
+      {% if st == 'uploading' or st == 'initiated' %}
         <!-- ACTIVE -->
         <div class="relative w-6 h-6 flex items-center justify-center shrink-0">
           <div class="absolute inset-0 rounded-full bg-[color:var(--echo-accent)] animate-ping opacity-75"></div>
           <div class="relative w-3 h-3 rounded-full bg-[color:var(--echo-accent)]"></div>
         </div>
-        <span class="text-sm font-bold shimmer-text">Extracting audio</span>
+        <div>
+          <span class="text-sm font-bold shimmer-text">{% if session.source_url %}Fetching link info{% else %}Uploading file{% endif %}</span>
+        </div>
+      {% elif st == 'fetching_metadata' %}
+        <!-- ACTIVE -->
+        <div class="relative w-6 h-6 flex items-center justify-center shrink-0">
+          <div class="absolute inset-0 rounded-full bg-[color:var(--echo-accent)] animate-ping opacity-75"></div>
+          <div class="relative w-3 h-3 rounded-full bg-[color:var(--echo-accent)]"></div>
+        </div>
+        <span class="text-sm font-bold shimmer-text">Fetching video info</span>
       {% else %}
         <!-- COMPLETE -->
         <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-[color:var(--echo-success)] text-white shadow-sm animate-step-complete">
@@ -65,23 +95,24 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <span class="text-sm line-through animate-step-complete" style="color: var(--echo-muted);">Extracting audio</span>
+        <span class="text-sm line-through animate-step-complete" style="color: var(--echo-muted);">{% if session.source_url %}Fetched video info{% else %}File uploaded{% endif %}</span>
       {% endif %}
     </div>
 
-    <!-- Step 2: Detecting language -->
+    <!-- Step 2: Downloading (URL sessions only, skipped for direct uploads) -->
+    {% if session.source_url %}
     <div class="relative z-10 flex items-center gap-4 step-row" data-step="2">
-      {% if session.status in 'uploading,extracting' %}
+      {% if st == 'initiated' or st == 'fetching_metadata' %}
         <!-- PENDING -->
         <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-transparent border-2 border-[color:var(--echo-muted)] opacity-40"></div>
-        <span class="text-sm font-medium opacity-60" style="color: var(--echo-muted);">Detecting language</span>
-      {% elif session.status == 'detecting' %}
+        <span class="text-sm font-medium opacity-60" style="color: var(--echo-muted);">Downloading audio</span>
+      {% elif st == 'downloading' %}
         <!-- ACTIVE -->
         <div class="relative w-6 h-6 flex items-center justify-center shrink-0">
           <div class="absolute inset-0 rounded-full bg-[color:var(--echo-accent)] animate-ping opacity-75"></div>
           <div class="relative w-3 h-3 rounded-full bg-[color:var(--echo-accent)]"></div>
         </div>
-        <span class="text-sm font-bold shimmer-text">Detecting language</span>
+        <span class="text-sm font-bold shimmer-text">Downloading audio</span>
       {% else %}
         <!-- COMPLETE -->
         <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-[color:var(--echo-success)] text-white shadow-sm animate-step-complete">
@@ -89,23 +120,24 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <span class="text-sm line-through animate-step-complete" style="color: var(--echo-muted);">Detecting language</span>
+        <span class="text-sm line-through animate-step-complete" style="color: var(--echo-muted);">Downloaded audio</span>
       {% endif %}
     </div>
+    {% endif %}
 
     <!-- Step 3: Transcribing -->
     <div class="relative z-10 flex items-center gap-4 step-row" data-step="3">
-      {% if session.status in 'uploading,extracting,detecting' %}
+      {% if st in 'initiated,fetching_metadata,downloading,uploading' %}
         <!-- PENDING -->
         <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-transparent border-2 border-[color:var(--echo-muted)] opacity-40"></div>
-        <span class="text-sm font-medium opacity-60" style="color: var(--echo-muted);">Transcribing</span>
-      {% elif session.status == 'transcribing' %}
+        <span class="text-sm font-medium opacity-60" style="color: var(--echo-muted);">Transcribing speech</span>
+      {% elif st == 'transcribing' %}
         <!-- ACTIVE -->
         <div class="relative w-6 h-6 flex items-center justify-center shrink-0">
           <div class="absolute inset-0 rounded-full bg-[color:var(--echo-accent)] animate-ping opacity-75"></div>
           <div class="relative w-3 h-3 rounded-full bg-[color:var(--echo-accent)]"></div>
         </div>
-        <span class="text-sm font-bold shimmer-text">Transcribing</span>
+        <span class="text-sm font-bold shimmer-text">Transcribing speech</span>
       {% else %}
         <!-- COMPLETE -->
         <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-[color:var(--echo-success)] text-white shadow-sm animate-step-complete">
@@ -113,17 +145,17 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <span class="text-sm line-through animate-step-complete" style="color: var(--echo-muted);">Transcribing</span>
+        <span class="text-sm line-through animate-step-complete" style="color: var(--echo-muted);">Transcribed speech</span>
       {% endif %}
     </div>
 
     <!-- Step 4: Generating summary -->
     <div class="relative z-10 flex items-center gap-4 step-row" data-step="4">
-      {% if session.status in 'uploading,extracting,detecting,transcribing' %}
+      {% if st in 'initiated,fetching_metadata,downloading,uploading,transcribing' %}
         <!-- PENDING -->
         <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-transparent border-2 border-[color:var(--echo-muted)] opacity-40"></div>
         <span class="text-sm font-medium opacity-60" style="color: var(--echo-muted);">Generating summary</span>
-      {% elif session.status == 'summarising' %}
+      {% elif st == 'summarising' %}
         <!-- ACTIVE -->
         <div class="relative w-6 h-6 flex items-center justify-center shrink-0">
           <div class="absolute inset-0 rounded-full bg-[color:var(--echo-accent)] animate-ping opacity-75"></div>
@@ -137,33 +169,11 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <span class="text-sm line-through animate-step-complete" style="color: var(--echo-muted);">Generating summary</span>
+        <span class="text-sm line-through animate-step-complete" style="color: var(--echo-muted);">Summary generated</span>
       {% endif %}
     </div>
 
-    <!-- Step 5: Creating flashcards -->
-    <div class="relative z-10 flex items-center gap-4 step-row" data-step="5">
-      {% if session.status in 'uploading,extracting,detecting,transcribing,summarising' %}
-        <!-- PENDING -->
-        <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-transparent border-2 border-[color:var(--echo-muted)] opacity-40"></div>
-        <span class="text-sm font-medium opacity-60" style="color: var(--echo-muted);">Creating flashcards</span>
-      {% elif session.status == 'flashcards' %}
-        <!-- ACTIVE -->
-        <div class="relative w-6 h-6 flex items-center justify-center shrink-0">
-          <div class="absolute inset-0 rounded-full bg-[color:var(--echo-accent)] animate-ping opacity-75"></div>
-          <div class="relative w-3 h-3 rounded-full bg-[color:var(--echo-accent)]"></div>
-        </div>
-        <span class="text-sm font-bold shimmer-text">Creating flashcards</span>
-      {% else %}
-        <!-- COMPLETE -->
-        <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-[color:var(--echo-success)] text-white shadow-sm animate-step-complete">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
-        <span class="text-sm line-through animate-step-complete" style="color: var(--echo-muted);">Creating flashcards</span>
-      {% endif %}
-    </div>
+    {% endwith %}
   </div>
 
   <!-- Skeletons for upcoming content -->

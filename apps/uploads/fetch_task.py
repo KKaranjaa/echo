@@ -285,23 +285,42 @@ def _download_yt_dlp(url, tmp_dir, upload_dir, session):
         ydl_opts['cookiefile'] = cookies_file
 
     ext = '.mp4'  # Fallback
-    try:
+    
+    def _do_download(client_args):
+        ydl_opts['extractor_args'] = client_args
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
+
+    try:
+        # First attempt: mobile clients (often best for audio-only formats)
+        _do_download({'youtube': {'player_client': ['android', 'ios', 'mweb']}})
     except yt_dlp.utils.DownloadError as e:
         err_str = str(e).lower()
         if 'sign in' in err_str or 'bot' in err_str or 'confirm' in err_str:
-            logger.warning("yt-dlp bot detection triggered for %s", url)
-            _set_failed(session, "YouTube is blocking this download. Please try uploading the file directly instead.")
+            logger.warning("yt-dlp bot detection triggered. Retrying with tv_embedded client for %s", url)
+            try:
+                # Second attempt: tv_embedded (often bypasses bot detection)
+                _do_download({'youtube': {'player_client': ['tv_embedded', 'web']}})
+            except yt_dlp.utils.DownloadError as e2:
+                logger.error("yt-dlp bot detection fallback failed: %s", str(e2))
+                _set_failed(session, "YouTube is blocking this download. Please try uploading the file directly instead.")
+                return ext
         elif 'private' in err_str or 'login' in err_str:
             _set_failed(session, "This video is private or requires sign-in. Please use a publicly accessible link.")
+            return ext
         elif 'unavailable' in err_str or 'removed' in err_str:
             _set_failed(session, "This video has been removed or is no longer available.")
+            return ext
         elif 'timed out' in err_str or 'timeout' in err_str:
             _set_failed(session, "The download timed out due to a slow connection. Please try again or upload the file directly.")
+            return ext
         else:
             logger.error("yt-dlp DownloadError (download stage): %s", str(e), exc_info=True)
             _set_failed(session, "Media download failed. Please try again or upload the file directly.")
+            return ext
+    except Exception as e:
+        logger.error("Unhandled yt-dlp error: %s", str(e), exc_info=True)
+        _set_failed(session, "Media download failed due to an unexpected error.")
         return ext
     finally:
         # Always clean up the temp cookies file after download attempt
