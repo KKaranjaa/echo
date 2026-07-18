@@ -15,7 +15,7 @@ import json
 
 logger = logging.getLogger(__name__)
 
-GROQ_MODEL = "llama-3.3-70b-versatile"  # Free tier, 32k context
+GROQ_MODEL = "llama-3.1-8b-instant"  # Free tier: 200k TPM, 131k context — handles long transcripts
 
 def _get_api_keys(prefix):
     keys = []
