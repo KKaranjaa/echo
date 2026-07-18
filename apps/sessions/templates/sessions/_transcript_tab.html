@@ -258,7 +258,7 @@
           <span class="transcript-word cursor-pointer px-0.5 rounded transition-colors hover:bg-[color:var(--echo-accent-soft)] relative inline-block group" 
                 data-start="${start}" 
                 data-end="${end}"
-                @click="seekTo(${start}); forceMobileMinimize = false;">
+                @click="seekTo(${start})">
             ${wordText}
             ${editedIndicator}
             <button @click.stop="isEditing = true; $nextTick(() => { $refs.input.focus(); $refs.input.select(); })" class="absolute -top-2 left-1/2 -translate-x-1/2 bg-white text-gray-500 rounded p-0.5 shadow border hidden group-hover:block z-10 hover:text-[color:var(--echo-accent)]" title="Edit text">

@@ -224,7 +224,7 @@
                 <span class="text-sm font-semibold text-amber-900 flex-1">"{{ flag.quote }}"</span>
                 {% if flag.timestamp != None %}
                 <button
-                  @click="seekTo({{ flag.timestamp }}); if (!playing) togglePlay(); if (isPip) { isPip = false; pipMinimized = false; forceHidePip = false; pipDragX = null; pipDragY = null; } forceMobileMinimize = false; $refs.playerContainer.scrollIntoView({behavior: 'smooth', block: 'center'});"
+                  @click="seekTo({{ flag.timestamp }}); if (!playing) togglePlay(); if (isPip) { isPip = false; pipMinimized = false; forceHidePip = false; pipDragX = null; pipDragY = null; } $refs.playerContainer.scrollIntoView({behavior: 'smooth', block: 'center'});"
                   class="flex-shrink-0 text-xs font-mono px-2 py-1 rounded bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors"
                   title="Play from here">
                   <span x-text="formatTime({{ flag.timestamp }})">{{ flag.timestamp }}s</span>
@@ -491,39 +491,11 @@
         </div>
 
         {# ──────────────────────────────────────────────── #}
-        {# MOBILE COLLAPSED PILL — fixed at bottom         #}
-        <div x-show="forceMobileMinimize"
-             x-transition.translate.y
-             class="fixed z-[100] bottom-6 left-4 right-4 h-14 rounded-full shadow-2xl border border-[color:var(--echo-accent)] flex items-center justify-between px-4 cursor-pointer bg-[color:var(--echo-surface)] lg:hidden"
-             style="display:none; backdrop-filter: blur(12px);"
-             @click="forceMobileMinimize = false">
-          
-          <div class="flex items-center gap-3 overflow-hidden">
-             <!-- Play/Pause Toggle -->
-             <button @click.stop="togglePlay()" class="w-8 h-8 rounded-full bg-[color:var(--echo-accent)] text-white flex items-center justify-center shrink-0">
-               <svg class="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24" x-show="!playing"><path d="M8 5v14l11-7z" /></svg>
-               <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24" x-show="playing" style="display:none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
-             </button>
-             <div class="flex flex-col truncate">
-                <span class="text-xs font-bold truncate" style="color:var(--echo-deep);">{{ session.original_filename }}</span>
-                <span class="text-[10px] font-medium" style="color:var(--echo-muted);" x-text="formatTime(currentTime) + ' / ' + formatTime(duration)"></span>
-             </div>
-          </div>
-          
-          <!-- Expand chevron -->
-          <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style="color:var(--echo-accent);">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/>
-            </svg>
-          </div>
-        </div>
-
-        {# ──────────────────────────────────────────────── #}
         {# FULL PiP card — independent position, draggable #}
         <section id="media-player-card"
                  class="echo-glass overflow-hidden flex flex-col transition-shadow duration-300 transform"
                  aria-label="Media Player"
-                 x-show="(!isPip || !pipMinimized) && !forceMobileMinimize"
+                 x-show="!isPip || !pipMinimized"
                  x-transition.scale.origin.bottom.right
                  :class="isPip ? 'fixed shadow-2xl z-[100] border-2 border-[color:var(--echo-accent)] max-h-[85vh] overflow-y-auto w-[340px]' : 'scale-100'"
                  :style="forceHidePip ? 'display: none !important;' : (isPip ? (pipDragX !== null ? `left:${pipDragX}px; top:${pipDragY}px;` : 'bottom:24px; right:80px;') : '')"
@@ -567,7 +539,7 @@
               🎬 Video
             </button>
             <!-- Mobile manual minimize button -->
-            <button @click="forceMobileMinimize = true"
+            <button @click="isPip = true; pipMinimized = true; forceHidePip = true;"
                     class="lg:hidden absolute right-0 top-0 bottom-0 px-4 flex items-center justify-center hover:bg-black/10 transition-colors"
                     title="Minimize Player">
               <svg class="w-4 h-4 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--echo-text);">

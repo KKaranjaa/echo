@@ -3,7 +3,7 @@
     <span class="transcript-word cursor-pointer px-0.5 rounded transition-colors hover:bg-[color:var(--echo-accent-soft)] relative inline-block group" 
           data-start="{{ word.start }}" 
           data-end="{{ word.end }}"
-          @click="seekTo({{ word.start }}); forceMobileMinimize = false;">
+          @click="seekTo({{ word.start }})">
       {{ word.word }}
       {% if word.is_edited %}
         <span class="absolute -top-1 -right-1 text-[8px] font-bold" style="color: var(--echo-accent);" title="Edited: original was '{{ word.original_text }}'">*</span>
