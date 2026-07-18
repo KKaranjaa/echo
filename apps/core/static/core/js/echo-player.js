@@ -130,6 +130,9 @@ window.echoMediaPlayer = function (audioUrl, transcriptWords = []) {
           loadedmetadata: () => {
             this.duration = el.duration || 0;
           },
+          durationchange: () => {
+            this.duration = el.duration || 0;
+          },
           timeupdate: () => {
             // Keep timeupdate for when paused (e.g., seeking/scrubbing)
             if (this.playing) return;

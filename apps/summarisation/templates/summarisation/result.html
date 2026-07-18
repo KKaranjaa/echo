@@ -538,19 +538,11 @@
               :style="mediaMode === 'video' ? 'background: var(--echo-accent);' : 'color: var(--echo-muted); background: transparent;'">
               🎬 Video
             </button>
-            <!-- Mobile manual minimize button -->
-            <button @click="isPip = true; pipMinimized = true; forceHidePip = true;"
-                    class="lg:hidden absolute right-0 top-0 bottom-0 px-4 flex items-center justify-center hover:bg-black/10 transition-colors"
-                    title="Minimize Player">
-              <svg class="w-4 h-4 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--echo-text);">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-              </svg>
-            </button>
           </div>
 
           {# Hidden Audio element #}
-          <audio x-ref="audio" :src="mediaMode === 'audio' ? audioUrl : ''" preload="metadata" class="hidden"
-            x-show="false">
+          <audio x-ref="audio" :src="mediaMode === 'audio' ? audioUrl : ''" preload="metadata" 
+                 style="opacity: 0; position: absolute; width: 0; height: 0; pointer-events: none;">
           </audio>
 
           {# Video element — visible in video mode #}
