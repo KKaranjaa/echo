@@ -1,9 +1,12 @@
 import os
+import logging
 import re
 import subprocess
 import ffmpeg
 import imageio_ffmpeg
 #import torch
+
+logger = logging.getLogger(__name__)
 
 ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
 
@@ -63,17 +66,22 @@ def chunk_audio(audio_path: str, chunk_min=10):
     
     for i in range(num_chunks):
         start_time = max(0, i * chunk_sec - overlap)
-        out_path = f"{base}_chunk_{i}{ext}"
+        out_path = f"{base}_chunk_{i}.mp3"
         # Specify duration parameter (t) rather than end time (to) for overlapping
         t_arg = chunk_sec + (overlap * 2)
         
-        (
-            ffmpeg
-            .input(audio_path, ss=start_time, t=t_arg)
-            .output(out_path, acodec='libmp3lame', audio_bitrate='64k', ac=1, ar='16000')
-            .overwrite_output()
-            .run(cmd=ffmpeg_path, quiet=True)
-        )
+        try:
+            (
+                ffmpeg
+                .input(audio_path, ss=start_time, t=t_arg)
+                .output(out_path, acodec='libmp3lame', audio_bitrate='64k', ac=1, ar='16000')
+                .overwrite_output()
+                .run(cmd=ffmpeg_path, capture_stdout=True, capture_stderr=True)
+            )
+        except ffmpeg.Error as e:
+            err_msg = e.stderr.decode('utf-8') if e.stderr else str(e)
+            logger.error(f"ffmpeg error chunking audio: {err_msg}")
+            raise
         chunks.append(out_path)
     
     return chunks
