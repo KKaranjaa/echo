@@ -20,7 +20,7 @@ def parse_summary(raw_text: str) -> dict:
     except json.JSONDecodeError as e:
         raise SummaryParseError(f"Invalid JSON: {e}")
         
-    required_keys = {'key_points', 'exam_flags', 'action_items', 'flashcards', 'summary_paragraph'}
+    required_keys = {'key_points', 'exam_flags', 'action_items', 'flashcards', 'summary_paragraph', 'starter_questions', 'strict_exam_flags'}
     if not isinstance(data, dict):
         raise SummaryParseError("Parsed JSON is not a dictionary")
         
