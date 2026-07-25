@@ -80,7 +80,6 @@ window.echoMediaPlayer = function (audioUrl, transcriptWords = []) {
         });
       }
       this.subtitles = chunks;
-      console.log('Subtitles generated:', this.subtitles.length, 'chunks from', words.length, 'words');
     },
 
     _attachMedia() {
@@ -132,6 +131,10 @@ window.echoMediaPlayer = function (audioUrl, transcriptWords = []) {
           },
           durationchange: () => {
             this.duration = el.duration || 0;
+          },
+          canplay: () => {
+            // Final fallback: mobile browsers sometimes only expose duration here
+            if (!this.duration && el.duration) this.duration = el.duration;
           },
           timeupdate: () => {
             // Keep timeupdate for when paused (e.g., seeking/scrubbing)

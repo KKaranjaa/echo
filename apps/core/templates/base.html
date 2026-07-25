@@ -5,6 +5,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Dark mode FOUC prevention: runs synchronously before any paint -->
+  <script>
+    (function() {
+      try {
+        var t = localStorage.getItem('theme');
+        if (t === 'dark') document.documentElement.classList.add('dark');
+      } catch(e) {}
+    })();
+  </script>
   <meta name="theme-color" content="#1E1B4B" />
   <meta name="description"
     content="{% block meta_description %}ECHO — AI-powered audio transcription and summarisation.{% endblock %}" />
@@ -88,6 +97,9 @@
        CSS custom properties + global base styles
   ─────────────────────────────────────────────────────────────────── -->
   <style>
+    /* Hide Alpine x-cloak elements until Alpine initializes */
+    [x-cloak] { display: none !important; }
+
     :root {
       --echo-deep: #1E1B4B;
       --echo-accent: #C084FC;

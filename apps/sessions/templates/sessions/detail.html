@@ -134,8 +134,9 @@
     <div class="echo-card p-5 sticky top-4" x-data="echoMediaPlayer('{{ session.audio_url }}')">
       <h4 class="text-sm font-bold mb-4" style="color: var(--echo-deep);">Playback</h4>
       
-      <!-- Hidden Audio Element -->
-      <audio x-ref="audio" :src="audioUrl" preload="metadata" class="hidden"></audio>
+      <!-- Hidden Audio Element: use visibility:hidden instead of display:none so mobile browsers load metadata -->
+      <audio x-ref="audio" :src="audioUrl" preload="metadata"
+             style="opacity:0; position:absolute; width:0; height:0; pointer-events:none;"></audio>
 
       <!-- Waveform Placeholder / Seek bar -->
       <div class="h-16 rounded-lg mb-4 flex flex-col justify-end bg-[color:var(--echo-surface)] border border-[color:var(--echo-border)] overflow-hidden relative cursor-pointer" @click="scrub" x-ref="seekBar">

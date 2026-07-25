@@ -36,6 +36,7 @@
 
     {# All Sessions #}
     <a href="{% url 'dashboard:index' %}"
+       @click="mobileMenuOpen = false"
        class="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold transition-all"
        :class="!activeTab ? 'bg-[color:var(--echo-accent)] text-white shadow-lg' : 'hover:bg-white/5'"
        style="color: {% if not active_tab %}white{% else %}var(--echo-text){% endif %};">
@@ -77,11 +78,11 @@
 
     {# Divider + account actions #}
     <div class="mt-auto pt-4 border-t flex flex-col gap-1" style="border-color: var(--echo-border);">
-      <a href="/" class="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium hover:bg-white/5 transition" style="color:var(--echo-text);">
+      <a href="/" @click="mobileMenuOpen = false" class="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium hover:bg-white/5 transition" style="color:var(--echo-text);">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4v16m-8-8h16"/></svg>
         New session
       </a>
-      <a href="{% url 'account_logout' %}" class="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium hover:bg-red-500/10 transition" style="color: #ef4444;">
+      <a href="{% url 'account_logout' %}" @click="mobileMenuOpen = false" class="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium hover:bg-red-500/10 transition" style="color: #ef4444;">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1"/></svg>
         Sign out
       </a>
@@ -145,6 +146,7 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {% for session in sessions %}
         <div class="echo-card group relative flex flex-col gap-3 p-4 hover:scale-[1.02] transition-transform cursor-default"
+             data-session-id="{{ session.id }}"
              x-data="{ menuOpen: false }">
 
           {# Status badge #}
@@ -204,8 +206,9 @@
             </div>
 
             {# Delete #}
-            <button @click="deleteSession('{{ session.id }}')"
-                    class="p-1.5 rounded-lg transition hover:bg-red-500/20" title="Delete session">
+            <button @click="deleteSession('{{ session.id }}', $event)"
+                    :disabled="deletingIds.has('{{ session.id }}')"
+                    class="p-1.5 rounded-lg transition hover:bg-red-500/20 disabled:opacity-40 disabled:cursor-not-allowed" title="Delete session">
               <svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
             </button>
           </div>
@@ -286,6 +289,14 @@ function dashboardApp() {
     newFolderName: '',
     renameTabId: null,
     renameValue: '',
+    deletingIds: new Set(),
+
+    _toast(msg, type = 'success') {
+      // Use the global Alpine store toast system
+      if (window.Alpine && Alpine.store && Alpine.store('toasts')) {
+        Alpine.store('toasts').addToast(msg, type);
+      }
+    },
 
     async createFolder() {
       const name = this.newFolderName.trim();
@@ -322,11 +333,16 @@ function dashboardApp() {
 
     async deleteTab(id) {
       if (!confirm('Delete this folder? Sessions inside will not be deleted.')) return;
-      await fetch(`/dashboard/tabs/${id}/delete/`, {
+      const r = await fetch(`/dashboard/tabs/${id}/delete/`, {
         method: 'POST',
         headers: {'X-CSRFToken': this.csrf()}
       });
-      window.location.reload();
+      if (r.ok) {
+        this._toast('Folder deleted');
+        window.location.reload();
+      } else {
+        this._toast('Could not delete folder', 'error');
+      }
     },
 
     async assignTab(sessionId, tabId) {
@@ -335,16 +351,27 @@ function dashboardApp() {
         headers: {'Content-Type': 'application/json', 'X-CSRFToken': this.csrf()},
         body: JSON.stringify({ tab_id: tabId })
       });
+      this._toast('Session moved');
       window.location.reload();
     },
 
-    async deleteSession(sessionId) {
+    async deleteSession(sessionId, event) {
       if (!confirm('Delete this session permanently?')) return;
-      await fetch(`/dashboard/sessions/${sessionId}/delete/`, {
+      // Immediately disable the button for feedback
+      this.deletingIds = new Set([...this.deletingIds, sessionId]);
+      const r = await fetch(`/dashboard/sessions/${sessionId}/delete/`, {
         method: 'POST',
         headers: {'X-CSRFToken': this.csrf()}
       });
-      window.location.reload();
+      if (r.ok) {
+        // Remove the card from DOM without a page reload
+        const card = event ? event.target.closest('[data-session-id]') : null;
+        if (card) card.remove();
+        this._toast('Session deleted');
+      } else {
+        this.deletingIds = new Set([...this.deletingIds].filter(id => id !== sessionId));
+        this._toast('Could not delete session', 'error');
+      }
     },
 
     csrf() {

@@ -96,6 +96,7 @@
       <div class="flex items-center justify-between flex-wrap gap-4">
         <div>
           <a href="/"
+            hx-boost="false"
             class="inline-flex items-center gap-2 text-sm font-medium mb-3 hover:opacity-80 transition-opacity"
             style="color: var(--echo-accent);">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -497,14 +498,14 @@
                  aria-label="Media Player"
                  x-show="!isPip || !pipMinimized"
                  x-transition.scale.origin.bottom.right
-                 :class="isPip ? 'fixed shadow-2xl z-[100] border-2 border-[color:var(--echo-accent)] max-h-[85vh] overflow-y-auto w-[340px]' : 'scale-100'"
+                 :class="isPip ? 'fixed shadow-2xl z-[100] border-2 border-[color:var(--echo-accent)] max-h-[85vh] overflow-y-auto w-[min(340px,90vw)]' : 'scale-100'"
                  :style="forceHidePip ? 'display: none !important;' : (isPip ? (pipDragX !== null ? `left:${pipDragX}px; top:${pipDragY}px;` : 'bottom:24px; right:80px;') : '')"
                  @click="if (isPip && pipMinimized) { forceHidePip = false; pipMinimized = false; }">
 
           {# Drag handle — only shown in full PiP mode #}
           <div x-show="isPip"
                class="flex items-center justify-between px-3 py-1.5 cursor-grab active:cursor-grabbing select-none border-b border-[color:var(--echo-border)]"
-               style="background: var(--echo-surface); display:none;"
+               style="background: var(--echo-surface);"
                @mousedown="_startDrag($event)"
                @touchstart.prevent="_startDrag($event)">
             <div class="flex items-center gap-1.5">
