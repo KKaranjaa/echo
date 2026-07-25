@@ -265,7 +265,7 @@ def _download_yt_dlp(url, tmp_dir, upload_dir, session):
 
     cookies_file = _get_cookies_file()
     ydl_opts = {
-        'format': 'bestaudio/best',      # prefer audio-only — much smaller than video+audio
+        'format': 'worstaudio/worst',      # fetch lowest quality audio for fastest download
         'outtmpl': tmp_output_template,
         'quiet': True,
         'no_warnings': True,
