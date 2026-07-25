@@ -6,7 +6,7 @@
 {% block top_nav %}
 {% if summary %}
 {# ── INLINE NAVIGATION PILL ── #}
-<div class="h-full flex items-center justify-center max-w-full overflow-hidden px-2"
+<div class="h-full flex items-center justify-center min-w-0 flex-1 px-1"
      style="animation: fade-in-up 0.5s ease-out forwards;"
      x-data="{
        scrollTo(id) {
@@ -20,36 +20,36 @@
          }
        }
      }">
-  <nav class="flex items-center gap-1 overflow-x-auto"
-       style="scrollbar-width: none; -ms-overflow-style: none;">
+  <nav class="flex items-center gap-0.5 overflow-x-auto"
+       style="scrollbar-width: none; -ms-overflow-style: none; -webkit-overflow-scrolling: touch;">
     <style> nav::-webkit-scrollbar { display: none; } </style>
     
     {% if summary.strict_exam_flags %}
-    <button @click="scrollTo('strict-flags-heading')" class="px-3 py-1 rounded-full text-[11px] font-bold transition-all whitespace-nowrap hover:scale-105 active:scale-95" style="color:var(--echo-deep);" onmouseover="this.style.background='var(--echo-accent)'; this.style.color='white'" onmouseout="this.style.background='transparent'; this.style.color='var(--echo-deep)'">Must Know</button>
+    <button @click="scrollTo('strict-flags-heading')" class="px-2.5 py-1 rounded-full text-[10px] font-bold transition-all whitespace-nowrap hover:scale-105 active:scale-95" style="color:var(--echo-deep);" onmouseover="this.style.background='var(--echo-accent)'; this.style.color='white'" onmouseout="this.style.background='transparent'; this.style.color='var(--echo-deep)'">Must Know</button>
     {% endif %}
 
     {% if summary.summary_paragraph %}
-    <button @click="scrollTo('summary-heading')" class="px-3 py-1 rounded-full text-[11px] font-bold transition-all whitespace-nowrap hover:scale-105 active:scale-95" style="color:var(--echo-deep);" onmouseover="this.style.background='var(--echo-accent)'; this.style.color='white'" onmouseout="this.style.background='transparent'; this.style.color='var(--echo-deep)'">Summary</button>
+    <button @click="scrollTo('summary-heading')" class="px-2.5 py-1 rounded-full text-[10px] font-bold transition-all whitespace-nowrap hover:scale-105 active:scale-95" style="color:var(--echo-deep);" onmouseover="this.style.background='var(--echo-accent)'; this.style.color='white'" onmouseout="this.style.background='transparent'; this.style.color='var(--echo-deep)'">Summary</button>
     {% endif %}
 
     {% if summary.key_points %}
-    <button @click="scrollTo('keypoints-heading')" class="px-3 py-1 rounded-full text-[11px] font-bold transition-all whitespace-nowrap hover:scale-105 active:scale-95" style="color:var(--echo-deep);" onmouseover="this.style.background='var(--echo-accent)'; this.style.color='white'" onmouseout="this.style.background='transparent'; this.style.color='var(--echo-deep)'">Key Points</button>
+    <button @click="scrollTo('keypoints-heading')" class="px-2.5 py-1 rounded-full text-[10px] font-bold transition-all whitespace-nowrap hover:scale-105 active:scale-95" style="color:var(--echo-deep);" onmouseover="this.style.background='var(--echo-accent)'; this.style.color='white'" onmouseout="this.style.background='transparent'; this.style.color='var(--echo-deep)'">Key Points</button>
     {% endif %}
 
     {% if summary.flashcards %}
-    <button @click="scrollTo('flashcards-heading')" class="px-3 py-1 rounded-full text-[11px] font-bold transition-all whitespace-nowrap hover:scale-105 active:scale-95" style="color:var(--echo-deep);" onmouseover="this.style.background='var(--echo-accent)'; this.style.color='white'" onmouseout="this.style.background='transparent'; this.style.color='var(--echo-deep)'">Flashcards</button>
+    <button @click="scrollTo('flashcards-heading')" class="px-2.5 py-1 rounded-full text-[10px] font-bold transition-all whitespace-nowrap hover:scale-105 active:scale-95" style="color:var(--echo-deep);" onmouseover="this.style.background='var(--echo-accent)'; this.style.color='white'" onmouseout="this.style.background='transparent'; this.style.color='var(--echo-deep)'">Flashcards</button>
     {% endif %}
 
     {% if summary.exam_flags %}
-    <button @click="scrollTo('flags-heading')" class="px-3 py-1 rounded-full text-[11px] font-bold transition-all whitespace-nowrap hover:scale-105 active:scale-95" style="color:var(--echo-deep);" onmouseover="this.style.background='var(--echo-accent)'; this.style.color='white'" onmouseout="this.style.background='transparent'; this.style.color='var(--echo-deep)'">Topics</button>
+    <button @click="scrollTo('flags-heading')" class="px-2.5 py-1 rounded-full text-[10px] font-bold transition-all whitespace-nowrap hover:scale-105 active:scale-95" style="color:var(--echo-deep);" onmouseover="this.style.background='var(--echo-accent)'; this.style.color='white'" onmouseout="this.style.background='transparent'; this.style.color='var(--echo-deep)'">Topics</button>
     {% endif %}
 
     {% if summary.action_items %}
-    <button @click="scrollTo('actions-heading')" class="px-3 py-1 rounded-full text-[11px] font-bold transition-all whitespace-nowrap hover:scale-105 active:scale-95" style="color:var(--echo-deep);" onmouseover="this.style.background='var(--echo-accent)'; this.style.color='white'" onmouseout="this.style.background='transparent'; this.style.color='var(--echo-deep)'">Tasks</button>
+    <button @click="scrollTo('actions-heading')" class="px-2.5 py-1 rounded-full text-[10px] font-bold transition-all whitespace-nowrap hover:scale-105 active:scale-95" style="color:var(--echo-deep);" onmouseover="this.style.background='var(--echo-accent)'; this.style.color='white'" onmouseout="this.style.background='transparent'; this.style.color='var(--echo-deep)'">Tasks</button>
     {% endif %}
     
-    <button @click="scrollTo('questions-heading')" class="px-3 py-1 rounded-full text-[11px] font-bold transition-all whitespace-nowrap hover:scale-105 active:scale-95" style="color:var(--echo-deep);" onmouseover="this.style.background='var(--echo-accent)'; this.style.color='white'" onmouseout="this.style.background='transparent'; this.style.color='var(--echo-deep)'">Ask</button>
-    <button @click="scrollTo('transcript-heading')" class="px-3 py-1 rounded-full text-[11px] font-bold transition-all whitespace-nowrap hover:scale-105 active:scale-95" style="color:var(--echo-deep);" onmouseover="this.style.background='var(--echo-accent)'; this.style.color='white'" onmouseout="this.style.background='transparent'; this.style.color='var(--echo-deep)'">Transcript</button>
+    <button @click="scrollTo('questions-heading')" class="px-2.5 py-1 rounded-full text-[10px] font-bold transition-all whitespace-nowrap hover:scale-105 active:scale-95" style="color:var(--echo-deep);" onmouseover="this.style.background='var(--echo-accent)'; this.style.color='white'" onmouseout="this.style.background='transparent'; this.style.color='var(--echo-deep)'">Ask</button>
+    <button @click="scrollTo('transcript-heading')" class="px-2.5 py-1 rounded-full text-[10px] font-bold transition-all whitespace-nowrap hover:scale-105 active:scale-95" style="color:var(--echo-deep);" onmouseover="this.style.background='var(--echo-accent)'; this.style.color='white'" onmouseout="this.style.background='transparent'; this.style.color='var(--echo-deep)'">Transcript</button>
   </nav>
 </div>
 {% endif %}
@@ -507,7 +507,7 @@
                class="flex items-center justify-between px-3 py-1.5 cursor-grab active:cursor-grabbing select-none border-b border-[color:var(--echo-border)]"
                style="background: var(--echo-surface);"
                @mousedown="_startDrag($event)"
-               @touchstart.prevent="_startDrag($event)">
+               @touchstart="_startDrag($event)">
             <div class="flex items-center gap-1.5">
               <svg class="w-3.5 h-3.5 opacity-40" fill="currentColor" viewBox="0 0 24 24">
                 <circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/>
@@ -517,6 +517,7 @@
               <span class="text-[10px] font-semibold opacity-50 uppercase tracking-widest">Drag to move</span>
             </div>
             <button @click.stop="pipMinimized = true"
+                    @touchend.stop.prevent="pipMinimized = true"
                     class="w-6 h-6 rounded-full flex items-center justify-center hover:bg-black/20 transition-colors"
                     title="Minimize">
               <svg class="w-3.5 h-3.5 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">

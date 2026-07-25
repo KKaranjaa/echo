@@ -550,6 +550,7 @@
         {% block nav_actions %}
         {% if user.is_authenticated %}
         <a href="{% url 'dashboard:index' %}"
+          hx-boost="false"
           class="px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-sm"
           style="background:var(--echo-accent); color:white;">Dashboard</a>
         {% else %}
