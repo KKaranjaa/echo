@@ -8,14 +8,14 @@ from groq import Groq
 from apps.uploads.models import Session
 from apps.transcription.models import Transcript
 from .models import Summary
-from .prompts.v2 import build_prompt, PROMPT_VERSION
-from .parsers import parse_summary, SummaryParseError
+from .prompts.v1 import build_prompt, build_starter_questions_prompt, PROMPT_VERSION
+from .prompts.strict_flags import build_strict_flags_prompt
+from .parsers import parse_summary, parse_starter_questions, SummaryParseError
 import json
-import re
 
 logger = logging.getLogger(__name__)
 
-GROQ_MODEL = "llama-3.1-8b-instant"  # Free tier: 200k TPM, 131k context
+GROQ_MODEL = "llama-3.1-8b-instant"  # Free tier: 200k TPM, 131k context — handles long transcripts
 
 def _get_api_keys(prefix):
     keys = []
@@ -34,7 +34,9 @@ def _get_api_keys(prefix):
 
 def _generate_text_waterfall(prompt, max_tokens, temperature=1.0):
     """
-    Attempts to generate JSON text using Groq first, then Anthropic, then Gemini.
+    Attempts to generate text using Groq first, then Anthropic, then Gemini.
+    Iterates through backup API keys (e.g. GROQ_API_KEY_2) if one is rate-limited.
+    Returns the raw string response. Raises Exception if all fail.
     """
     # 1. TRY GROQ
     for api_key in _get_api_keys('GROQ_API_KEY'):
@@ -45,11 +47,10 @@ def _generate_text_waterfall(prompt, max_tokens, temperature=1.0):
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=max_tokens,
                 temperature=temperature,
-                response_format={"type": "json_object"}
             )
             return response.choices[0].message.content
         except Exception as e:
-            logger.warning(f"Groq API failed with key: {e}. Trying next...")
+            logger.warning(f"Groq API failed with key (ending in ...{api_key[-4:] if api_key else 'None'}): {e}. Trying next...")
             continue
             
     logger.warning("All Groq keys failed. Falling back to Anthropic...")
@@ -62,14 +63,11 @@ def _generate_text_waterfall(prompt, max_tokens, temperature=1.0):
                 model="claude-3-5-sonnet-20241022",
                 max_tokens=max_tokens,
                 temperature=temperature,
-                messages=[
-                    {"role": "user", "content": prompt},
-                    {"role": "assistant", "content": "{"} # prefill to force JSON
-                ]
+                messages=[{"role": "user", "content": prompt}]
             )
-            return "{" + response.content[0].text
+            return response.content[0].text
         except Exception as e:
-            logger.warning(f"Anthropic API failed with key: {e}. Trying next...")
+            logger.warning(f"Anthropic API failed with key (ending in ...{api_key[-4:] if api_key else 'None'}): {e}. Trying next...")
             continue
 
     logger.warning("All Anthropic keys failed. Falling back to Gemini...")
@@ -80,16 +78,13 @@ def _generate_text_waterfall(prompt, max_tokens, temperature=1.0):
             from google.genai import types
             client = genai.Client(api_key=api_key, http_options={'api_version': 'v1'})
             response = client.models.generate_content(
-                model='gemini-flash-lite-latest',
+                model='gemini-2.5-flash',
                 contents=prompt,
-                config=types.GenerateContentConfig(
-                    temperature=temperature,
-                    response_mime_type="application/json"
-                )
+                config=types.GenerateContentConfig(temperature=temperature)
             )
             return response.text
         except Exception as e:
-            logger.warning(f"Gemini API failed with key: {e}. Trying next...")
+            logger.warning(f"Gemini API failed with key (ending in ...{api_key[-4:] if api_key else 'None'}): {e}. Trying next...")
             continue
 
     raise RuntimeError("All AI providers and backup keys failed or no API keys configured.")
@@ -101,42 +96,88 @@ def summarise_session(session_id):
         session = Session.objects.get(id=session_id)
         transcript = Transcript.objects.get(session=session)
         
-        current_prompt = build_prompt(transcript.raw_text, session.detected_language)
-        max_attempts = 2
-        summary_data = None
+        import concurrent.futures
         
-        for attempt in range(max_attempts):
-            try:
-                # 6000 max tokens to accommodate all 6 fields in a single JSON
-                raw_response = _generate_text_waterfall(current_prompt, max_tokens=6000)
-                summary_data = parse_summary(raw_response)
-                break
-            except SummaryParseError:
-                if attempt == max_attempts - 1:
-                    logger.error(f"Failed to parse consolidated JSON for session {session_id}")
-                    summary_data = {}
-                else:
-                    current_prompt += "\n\nYou returned invalid JSON. Return ONLY the JSON object. No text before or after."
+        def generate_summary():
+            current_prompt = build_prompt(transcript.raw_text, session.detected_language)
+            max_attempts = 2
+            
+            for attempt in range(max_attempts):
+                try:
+                    raw_response = _generate_text_waterfall(current_prompt, max_tokens=2000)
+                    return parse_summary(raw_response)
+                except SummaryParseError:
+                    if attempt == max_attempts - 1:
+                        return {
+                            "key_points": [],
+                            "exam_flags": [],
+                            "action_items": [],
+                            "flashcards": [],
+                            "summary_paragraph": raw_response if 'raw_response' in locals() else "Failed to parse summary."
+                        }
+                    else:
+                        current_prompt += "\n\nYou returned invalid JSON. Return ONLY the JSON object. No text before or after."
+            return None
 
+        def generate_sq():
+            sq_prompt = build_starter_questions_prompt(transcript.raw_text)
+            try:
+                raw_response = _generate_text_waterfall(sq_prompt, max_tokens=300)
+                return parse_starter_questions(raw_response)
+            except Exception as e:
+                logger.error(f"Failed to generate starter questions: {e}")
+                return []
+
+                
+        def generate_strict_exam_flags():
+            flags_prompt = build_strict_flags_prompt(transcript.raw_text)
+            try:
+                raw_response = _generate_text_waterfall(flags_prompt, max_tokens=1500, temperature=0.0)
+                
+                # Try parsing JSON safely
+                import re
+                json_str = raw_response
+                # Clean up if markdown fences were added despite instructions
+                if "```" in raw_response:
+                    m = re.search(r'```(?:json)?(.*?)```', raw_response, re.DOTALL)
+                    if m:
+                        json_str = m.group(1)
+                        
+                flags = json.loads(json_str.strip())
+                if not isinstance(flags, list):
+                    return []
+                    
+                # Post-process to find approximate timestamps via substring search
+                raw_lower = transcript.raw_text.lower()
+                total_chars = len(raw_lower)
+                duration = getattr(session, 'duration_seconds', 0)
+                
+                for flag in flags:
+                    quote = flag.get('quote', '')
+                    if quote and total_chars > 0 and duration > 0:
+                        idx = raw_lower.find(quote.lower()[:50]) # match first 50 chars to be safe against slight LLM changes
+                        if idx != -1:
+                            # approximate timestamp assuming uniform speaking rate
+                            timestamp_seconds = int((idx / total_chars) * duration)
+                            flag['timestamp'] = timestamp_seconds
+                return flags
+            except Exception as e:
+                logger.error(f"Failed to generate strict exam flags: {e}")
+                return []
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+            summary_future = executor.submit(generate_summary)
+            sq_future = executor.submit(generate_sq)
+            flags_future = executor.submit(generate_strict_exam_flags)
+            
+            summary_data = summary_future.result()
+            starter_questions = sq_future.result()
+            strict_exam_flags = flags_future.result()
+            
         if not summary_data:
             summary_data = {}
             
-        # Post-process strict flags to find approximate timestamps via substring search
-        strict_flags = summary_data.get('strict_exam_flags', [])
-        if isinstance(strict_flags, list):
-            raw_lower = transcript.raw_text.lower()
-            total_chars = len(raw_lower)
-            duration = getattr(session, 'duration_seconds', 0)
-            
-            for flag in strict_flags:
-                quote = flag.get('quote', '')
-                if quote and total_chars > 0 and duration > 0:
-                    idx = raw_lower.find(quote.lower()[:50])
-                    if idx != -1:
-                        timestamp_seconds = int((idx / total_chars) * duration)
-                        flag['timestamp'] = timestamp_seconds
-                        
-        # Save Summary to DB
+        # 3. Save Summary to DB
         Summary.objects.create(
             session=session,
             key_points=summary_data.get('key_points', []),
@@ -145,10 +186,11 @@ def summarise_session(session_id):
             flashcards=summary_data.get('flashcards', []),
             summary_paragraph=summary_data.get('summary_paragraph', ''),
             prompt_version=PROMPT_VERSION,
-            starter_questions=summary_data.get('starter_questions', []),
-            strict_exam_flags=strict_flags
+            starter_questions=starter_questions,
+            strict_exam_flags=strict_exam_flags
         )
         
+        # 4. Update session status
         session.status = 'complete'
         session.save()
         
