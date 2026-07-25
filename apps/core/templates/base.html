@@ -1,6 +1,6 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="en" x-data="{ toasts: [], theme: localStorage.getItem('theme') || 'light' }" :class="theme">
+<html lang="en" x-data="{ toasts: [], theme: localStorage.getItem('theme') || 'light' }" :class="{ 'dark': theme === 'dark' }">
 
 <head>
   <meta charset="UTF-8" />
