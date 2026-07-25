@@ -1,12 +1,5 @@
 <div id="processing-panel" 
-     class="echo-glass p-8 w-full max-w-2xl mx-auto"
-     {% if session.status not in 'complete,failed' %}
-     hx-get="/results/{{ session.id }}/"
-     hx-trigger="every 3s"
-     hx-target="#processing-panel"
-     hx-swap="outerHTML"
-     hx-select="#processing-panel"
-     {% endif %}>
+     class="echo-glass p-8 w-full max-w-2xl mx-auto">
 
   
   <!-- Header: File info -->
@@ -58,7 +51,6 @@
     </div>
     <p class="text-sm font-semibold" style="color: var(--echo-muted);">Complete! Loading results…</p>
   </div>
-  <script>window.location.href = "/results/{{ session.id }}/";</script>
 
   {% else %}
 
@@ -237,4 +229,36 @@
       animation: stepComplete 300ms ease-out forwards;
     }
   </style>
+
+  {% if session.status not in 'complete,failed' %}
+  <script>
+  (function() {
+    var statusUrl = "/sessions/{{ session.id }}/status/";
+    var resultUrl = null;
+    var poll = setInterval(function() {
+      fetch(statusUrl)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.status === 'complete' && data.result_url) {
+            clearInterval(poll);
+            window.location.href = data.result_url;
+          } else if (data.status === 'failed') {
+            clearInterval(poll);
+            window.location.reload();
+          } else {
+            // Update the step indicators in place without a full page reload
+            var statusMap = {
+              'uploading': 1, 'initiated': 1, 'fetching_metadata': 1,
+              'downloading': 2, 'transcribing': 3, 'summarising': 4
+            };
+          }
+        })
+        .catch(function() { /* silently ignore network blips */ });
+    }, 3000);
+  })();
+  </script>
+  {% elif session.status == 'complete' %}
+  <script>window.location.href = "/results/{{ session.id }}/";</script>
+  {% endif %}
+
 </div>
