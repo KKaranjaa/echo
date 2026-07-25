@@ -6,6 +6,10 @@ def session_result(request, session_id):
     """Render the full results page for a processed session."""
     session = get_object_or_404(Session, id=session_id)
 
+    # If still processing or failed, show the clean standalone pipeline page
+    if session.status != 'complete':
+        return render(request, 'uploads/progress.html', {'session': session})
+
     transcript = getattr(session, 'transcript', None)
     summary = getattr(session, 'summary', None)
 
@@ -15,3 +19,4 @@ def session_result(request, session_id):
         'summary': summary,
     }
     return render(request, 'summarisation/result.html', context)
+

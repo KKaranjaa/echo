@@ -1,264 +1,244 @@
-<div id="processing-panel" 
-     class="echo-glass p-8 w-full max-w-2xl mx-auto">
-
-  
-  <!-- Header: File info -->
-  <div class="mb-8 pb-6 border-b border-[color:var(--echo-border)] flex flex-col gap-2">
-    <h2 class="text-xl font-bold truncate" style="color: var(--echo-deep);">{{ session.original_filename }}</h2>
-    <div class="flex items-center gap-3 text-sm font-medium" style="color: var(--echo-muted);">
-      <span>{% if session.source_url %}Link processing{% else %}File processing{% endif %}</span>
-      {% if session.duration_seconds %}
-        <span class="w-1 h-1 rounded-full bg-current"></span>
-        <span>{{ session.duration_seconds }}s</span>
-      {% endif %}
-    </div>
-  </div>
-
-  {% if session.status == 'failed' %}
-  <!-- Failure State -->
-  <div class="echo-card p-6 border-l-4 mb-8" style="background-color: white; border-color: var(--echo-amber);">
-    <h3 class="text-lg font-bold mb-2 flex items-center gap-2" style="color: var(--echo-deep);">
-      <svg class="w-5 h-5" style="color: var(--echo-amber);" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-      Processing Failed
-    </h3>
-    <p class="text-sm font-medium mb-4" style="color: var(--echo-muted);">
-      {{ session.error_detail|default:"An unexpected error occurred during processing. Our system couldn't handle the file." }}
-    </p>
-    
-    <details class="text-sm font-medium mb-6 group cursor-pointer" style="color: var(--echo-muted);">
-      <summary class="font-bold select-none hover:opacity-80 focus:outline-none">Common issues &middot; Click to expand</summary>
-      <ul class="list-disc pl-5 space-y-1 mt-3 opacity-90">
-        <li>The audio might be completely silent or contain no speech.</li>
-        <li>The file might be corrupted or in an unsupported codec (we support MP4, MP3, WAV, M4A).</li>
-        <li>The recording might be too short (under 5 seconds) to be transcribed.</li>
-        <li>For YouTube links: the video may be age-restricted, private, or region-blocked.</li>
-      </ul>
-    </details>
-
-    <a href="/" class="px-6 py-3 rounded-xl font-bold transition-transform hover:-translate-y-0.5 shadow-md hover:shadow-lg inline-block echo-btn" style="background-color: var(--echo-deep); color: white;">
-      Try again with a different file
-    </a>
-  </div>
-
-  {% elif session.status == 'complete' %}
-  {# ── Complete: redirect immediately ──────────────────────────────────── #}
-  <div class="text-center py-6">
-    <div class="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
-         style="background: rgba(16,185,129,0.12);">
-      <svg class="w-7 h-7 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
-      </svg>
-    </div>
-    <p class="text-sm font-semibold" style="color: var(--echo-muted);">Complete! Loading results…</p>
-  </div>
-
-  {% else %}
-
-  <!-- Stepper Pipeline — steps match real Celery task statuses -->
-  <div class="flex flex-col gap-8 relative pl-2">
-    <!-- Connecting line behind steps -->
-    <div class="absolute left-[19px] top-4 bottom-4 w-[2px] bg-[color:var(--echo-border)] z-0"></div>
-
-    {# ── Determine which step is active based on real backend status ── #}
-    {% with st=session.status %}
-
-    <!-- Step 1: Fetching info (only for URL sessions) / Uploading (for direct file uploads) -->
-    <div class="relative z-10 flex items-center gap-4 step-row" data-step="1">
-      {% if st == 'uploading' or st == 'initiated' %}
-        <!-- ACTIVE -->
-        <div class="relative w-6 h-6 flex items-center justify-center shrink-0">
-          <div class="absolute inset-0 rounded-full bg-[color:var(--echo-accent)] animate-ping opacity-75"></div>
-          <div class="relative w-3 h-3 rounded-full bg-[color:var(--echo-accent)]"></div>
-        </div>
-        <div>
-          <span class="text-sm font-bold shimmer-text">{% if session.source_url %}Fetching link info{% else %}Uploading file{% endif %}</span>
-        </div>
-      {% elif st == 'fetching_metadata' %}
-        <!-- ACTIVE -->
-        <div class="relative w-6 h-6 flex items-center justify-center shrink-0">
-          <div class="absolute inset-0 rounded-full bg-[color:var(--echo-accent)] animate-ping opacity-75"></div>
-          <div class="relative w-3 h-3 rounded-full bg-[color:var(--echo-accent)]"></div>
-        </div>
-        <span class="text-sm font-bold shimmer-text">Fetching video info</span>
-      {% else %}
-        <!-- COMPLETE -->
-        <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-[color:var(--echo-success)] text-white shadow-sm animate-step-complete">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
-        <span class="text-sm line-through animate-step-complete" style="color: var(--echo-muted);">{% if session.source_url %}Fetched video info{% else %}File uploaded{% endif %}</span>
-      {% endif %}
-    </div>
-
-    <!-- Step 2: Downloading (URL sessions only, skipped for direct uploads) -->
-    {% if session.source_url %}
-    <div class="relative z-10 flex items-center gap-4 step-row" data-step="2">
-      {% if st == 'initiated' or st == 'fetching_metadata' %}
-        <!-- PENDING -->
-        <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-transparent border-2 border-[color:var(--echo-muted)] opacity-40"></div>
-        <span class="text-sm font-medium opacity-60" style="color: var(--echo-muted);">Downloading audio</span>
-      {% elif st == 'downloading' %}
-        <!-- ACTIVE -->
-        <div class="relative w-6 h-6 flex items-center justify-center shrink-0">
-          <div class="absolute inset-0 rounded-full bg-[color:var(--echo-accent)] animate-ping opacity-75"></div>
-          <div class="relative w-3 h-3 rounded-full bg-[color:var(--echo-accent)]"></div>
-        </div>
-        <span class="text-sm font-bold shimmer-text">Downloading audio</span>
-      {% else %}
-        <!-- COMPLETE -->
-        <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-[color:var(--echo-success)] text-white shadow-sm animate-step-complete">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
-        <span class="text-sm line-through animate-step-complete" style="color: var(--echo-muted);">Downloaded audio</span>
-      {% endif %}
-    </div>
-    {% endif %}
-
-    <!-- Step 3: Transcribing -->
-    <div class="relative z-10 flex items-center gap-4 step-row" data-step="3">
-      {% if st in 'initiated,fetching_metadata,downloading,uploading' %}
-        <!-- PENDING -->
-        <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-transparent border-2 border-[color:var(--echo-muted)] opacity-40"></div>
-        <span class="text-sm font-medium opacity-60" style="color: var(--echo-muted);">Transcribing speech</span>
-      {% elif st == 'transcribing' %}
-        <!-- ACTIVE -->
-        <div class="relative w-6 h-6 flex items-center justify-center shrink-0">
-          <div class="absolute inset-0 rounded-full bg-[color:var(--echo-accent)] animate-ping opacity-75"></div>
-          <div class="relative w-3 h-3 rounded-full bg-[color:var(--echo-accent)]"></div>
-        </div>
-        <span class="text-sm font-bold shimmer-text">Transcribing speech</span>
-      {% else %}
-        <!-- COMPLETE -->
-        <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-[color:var(--echo-success)] text-white shadow-sm animate-step-complete">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
-        <span class="text-sm line-through animate-step-complete" style="color: var(--echo-muted);">Transcribed speech</span>
-      {% endif %}
-    </div>
-
-    <!-- Step 4: Generating summary -->
-    <div class="relative z-10 flex items-center gap-4 step-row" data-step="4">
-      {% if st in 'initiated,fetching_metadata,downloading,uploading,transcribing' %}
-        <!-- PENDING -->
-        <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-transparent border-2 border-[color:var(--echo-muted)] opacity-40"></div>
-        <span class="text-sm font-medium opacity-60" style="color: var(--echo-muted);">Generating summary</span>
-      {% elif st == 'summarising' %}
-        <!-- ACTIVE -->
-        <div class="relative w-6 h-6 flex items-center justify-center shrink-0">
-          <div class="absolute inset-0 rounded-full bg-[color:var(--echo-accent)] animate-ping opacity-75"></div>
-          <div class="relative w-3 h-3 rounded-full bg-[color:var(--echo-accent)]"></div>
-        </div>
-        <span class="text-sm font-bold shimmer-text">Generating summary</span>
-      {% else %}
-        <!-- COMPLETE -->
-        <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 bg-[color:var(--echo-success)] text-white shadow-sm animate-step-complete">
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
-        <span class="text-sm line-through animate-step-complete" style="color: var(--echo-muted);">Summary generated</span>
-      {% endif %}
-    </div>
-
-    {% endwith %}
-  </div>
-
-  <!-- Skeletons for upcoming content -->
-  <div class="mt-12 pt-8 border-t border-[color:var(--echo-border)]">
-    <h3 class="text-xs font-bold mb-6 tracking-widest uppercase" style="color: var(--echo-muted);">Preparing your insights</h3>
-    
-    <!-- Skeleton Summary Bullets -->
-    <div class="space-y-4 mb-10">
-      <div class="flex gap-4 items-center">
-        <div class="w-2 h-2 rounded-full shrink-0 bg-[color:var(--echo-border)] opacity-60 animate-pulse"></div>
-        <div class="h-3 rounded bg-[color:var(--echo-border)] opacity-60 animate-pulse w-full max-w-[85%]"></div>
-      </div>
-      <div class="flex gap-4 items-center">
-        <div class="w-2 h-2 rounded-full shrink-0 bg-[color:var(--echo-border)] opacity-60 animate-pulse"></div>
-        <div class="h-3 rounded bg-[color:var(--echo-border)] opacity-60 animate-pulse w-full max-w-[70%]"></div>
-      </div>
-      <div class="flex gap-4 items-center">
-        <div class="w-2 h-2 rounded-full shrink-0 bg-[color:var(--echo-border)] opacity-60 animate-pulse"></div>
-        <div class="h-3 rounded bg-[color:var(--echo-border)] opacity-60 animate-pulse w-full max-w-[90%]"></div>
-      </div>
-    </div>
-
-    <!-- Skeleton Flashcards -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <div class="h-28 rounded-xl border-2 border-[color:var(--echo-border)] border-dashed opacity-40 animate-pulse" style="background-color: var(--echo-card);"></div>
-      <div class="h-28 rounded-xl border-2 border-[color:var(--echo-border)] border-dashed opacity-40 animate-pulse hidden sm:block" style="background-color: var(--echo-card);"></div>
-    </div>
-  </div>
-
-  <!-- Cancel button -->
-  <div class="mt-8 flex justify-center">
-    <form hx-post="/cancel/{{ session.id }}/" hx-target="#processing-panel" hx-swap="outerHTML">
-      <button type="submit" class="text-sm font-semibold tracking-wide hover:opacity-80 transition-opacity" style="color: var(--echo-error);">
-        Cancel processing
-      </button>
-    </form>
-  </div>
-  {% endif %}
-
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" x-data="{ dark: localStorage.getItem('echo-theme') === 'dark' }" :class="dark ? 'dark' : ''" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Processing — Echo</title>
+  <link rel="stylesheet" href="{% static 'css/main.css' %}">
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <style>
-    /* Shimmer effect for active text */
-    @keyframes shimmer {
-      0% { background-position: -200% center; }
-      100% { background-position: 200% center; }
+    body {
+      background: var(--echo-bg);
+      color: var(--echo-text);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    .shimmer-text {
-      background: linear-gradient(90deg, var(--echo-deep) 0%, var(--echo-accent) 50%, var(--echo-deep) 100%);
-      background-size: 200% auto;
-      color: transparent;
-      -webkit-background-clip: text;
-      background-clip: text;
-      animation: shimmer 3s linear infinite;
+
+    @keyframes echo-spin {
+      to { transform: rotate(360deg); }
     }
-    
-    /* Slide up and fade in for completed steps */
-    @keyframes stepComplete {
-      0% { opacity: 0; transform: translateY(8px); }
-      100% { opacity: 1; transform: translateY(0); }
+    @keyframes echo-pulse-ring {
+      0%   { transform: scale(1);   opacity: 0.7; }
+      100% { transform: scale(1.5); opacity: 0;   }
     }
-    .animate-step-complete {
-      animation: stepComplete 300ms ease-out forwards;
+    @keyframes echo-line-appear {
+      from { opacity: 0; transform: scaleX(0); transform-origin: left; }
+      to   { opacity: 1; transform: scaleX(1); }
+    }
+    @keyframes echo-fade-up {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0);   }
+    }
+    @keyframes echo-progress-bar {
+      from { width: 0%;   }
+      to   { width: 100%; }
+    }
+    @keyframes waveFloat {
+      0%, 100% { transform: translateY(0px);   }
+      50%       { transform: translateY(-6px);  }
+    }
+
+    .echo-node-waiting {
+      background: rgba(255,255,255,0.06);
+      border: 2px solid rgba(255,255,255,0.12);
+      color: var(--echo-subtext);
+    }
+    .echo-node-active {
+      background: linear-gradient(135deg, var(--echo-accent), #a855f7);
+      box-shadow: 0 0 0 0 var(--echo-accent);
+      animation: echo-pulse-ring 1.4s ease-out infinite;
+    }
+    .echo-node-done {
+      background: linear-gradient(135deg, #10b981, #059669);
+      box-shadow: 0 2px 12px rgba(16,185,129,0.4);
+    }
+
+    .pipeline-card {
+      background: var(--echo-surface, rgba(255,255,255,0.04));
+      border: 1px solid var(--echo-border, rgba(255,255,255,0.08));
+      border-radius: 28px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      box-shadow: 0 24px 64px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.06);
+      padding: clamp(2rem, 5vw, 3.5rem);
+      width: 100%;
+      max-width: 380px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .pipeline-card::before {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: 30px;
+      background: linear-gradient(135deg, var(--echo-accent), transparent 60%);
+      opacity: 0.12;
+      pointer-events: none;
+    }
+
+    .echo-logo {
+      font-size: 1.1rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--echo-accent);
+      text-decoration: none;
     }
   </style>
+</head>
+<body>
 
-  {% if session.status not in 'complete,failed' %}
-  <script>
-  (function() {
-    var statusUrl = "/sessions/{{ session.id }}/status/";
-    var resultUrl = null;
-    var poll = setInterval(function() {
-      fetch(statusUrl)
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-          if (data.status === 'complete' && data.result_url) {
-            clearInterval(poll);
-            window.location.href = data.result_url;
-          } else if (data.status === 'failed') {
-            clearInterval(poll);
-            window.location.reload();
-          } else {
-            // Update the step indicators in place without a full page reload
-            var statusMap = {
-              'uploading': 1, 'initiated': 1, 'fetching_metadata': 1,
-              'downloading': 2, 'transcribing': 3, 'summarising': 4
-            };
-          }
-        })
-        .catch(function() { /* silently ignore network blips */ });
-    }, 3000);
-  })();
-  </script>
-  {% elif session.status == 'complete' %}
-  <script>window.location.href = "/results/{{ session.id }}/";</script>
-  {% endif %}
+<div x-data="echoProcessingPage()" x-init="init()" style="width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 1.5rem; box-sizing: border-box;">
+
+  <!-- Logo -->
+  <a href="/" class="echo-logo" style="margin-bottom: 2rem;">ECHO</a>
+
+  <!-- Pipeline Card -->
+  <div class="pipeline-card">
+
+    <!-- Header -->
+    <p style="font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--echo-subtext, #a1a1aa); font-weight: 700; margin-bottom: 0.4rem;">Processing your lecture</p>
+    <p x-text="filename" style="font-size: 0.82rem; font-weight: 600; color: var(--echo-text, #f4f4f5); margin-bottom: 2.5rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;" title="{{ session.original_filename }}"></p>
+
+    <!-- 4-step vertical pipeline -->
+    <div style="display: flex; flex-direction: column; gap: 0; width: 100%; position: relative;">
+      <template x-for="(step, i) in steps" :key="i">
+        <div style="display: flex; flex-direction: column; align-items: flex-start;">
+          <div style="display: flex; align-items: center; gap: 1rem; width: 100%;">
+
+            <!-- Node -->
+            <div :class="{
+              'echo-node-active':  step.status === 'active',
+              'echo-node-done':    step.status === 'done',
+              'echo-node-waiting': step.status === 'waiting'
+            }" style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.4s ease;">
+              <template x-if="step.status === 'done'">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </template>
+              <template x-if="step.status === 'active'">
+                <div style="width: 13px; height: 13px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: echo-spin 0.8s linear infinite;"></div>
+              </template>
+              <template x-if="step.status === 'waiting'">
+                <span x-text="i + 1" style="font-size: 0.7rem; font-weight: 700; font-family: 'JetBrains Mono', monospace;"></span>
+              </template>
+            </div>
+
+            <!-- Label -->
+            <div style="flex: 1; min-width: 0;">
+              <p x-text="step.label" :style="step.status === 'waiting' ? 'opacity: 0.35' : 'opacity: 1'" style="font-size: 0.9rem; font-weight: 600; color: var(--echo-text, #f4f4f5); transition: opacity 0.3s; margin: 0;"></p>
+              <p x-text="step.sub" style="font-size: 0.72rem; color: var(--echo-subtext, #a1a1aa); margin: 2px 0 0 0;"></p>
+            </div>
+
+          </div>
+
+          <!-- Connector line -->
+          <template x-if="i < steps.length - 1">
+            <div style="margin-left: 15px; width: 2px; height: 28px; background: linear-gradient(to bottom, var(--echo-accent, #a855f7), rgba(192,132,252,0.1)); opacity: 0.4; margin-top: 2px; margin-bottom: 2px;"></div>
+          </template>
+        </div>
+      </template>
+    </div>
+
+    <!-- Ready state — redirect bar -->
+    <div x-show="isComplete" x-transition style="margin-top: 2rem; text-align: center;">
+      <p style="font-size: 0.75rem; color: var(--echo-subtext, #a1a1aa); margin-bottom: 0.5rem;">Results prepared — redirecting…</p>
+      <div style="width: 100%; height: 2px; border-radius: 2px; background: rgba(192,132,252,0.14); overflow: hidden;">
+        <div style="height: 100%; background: var(--echo-accent, #a855f7); animation: echo-progress-bar 1.8s linear forwards;"></div>
+      </div>
+    </div>
+
+    <!-- Failed state -->
+    <div x-show="isFailed" x-transition style="margin-top: 2rem; text-align: center;">
+      <p style="font-size: 0.82rem; color: #ef4444; font-weight: 600; margin-bottom: 1rem;">Processing failed.</p>
+      <a href="/" style="font-size: 0.8rem; color: var(--echo-accent, #a855f7); font-weight: 600; text-decoration: none;">← Try again</a>
+    </div>
+
+  </div>
+
+  <!-- Subtle back link -->
+  <a href="/" style="margin-top: 1.5rem; font-size: 0.72rem; color: var(--echo-subtext, #a1a1aa); text-decoration: none; opacity: 0.6; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">Cancel and go back</a>
 
 </div>
+
+<script>
+function echoProcessingPage() {
+  return {
+    filename: '{{ session.original_filename|escapejs }}',
+    isComplete: false,
+    isFailed: false,
+    _poller: null,
+
+    // Map backend status → which step index is active (0-based)
+    // Steps: 0=Uploading, 1=Transcribing, 2=Summarising, 3=Ready
+    statusMap: {
+      'initiated':         0,
+      'uploading':         0,
+      'fetching_metadata': 0,
+      'downloading':       0,
+      'transcribing':      1,
+      'summarising':       2,
+      'complete':          3,
+    },
+
+    steps: [
+      { label: 'Uploading',    sub: 'Securing your file',              status: 'active'  },
+      { label: 'Transcribing', sub: 'Converting speech to text',       status: 'waiting' },
+      { label: 'Summarising',  sub: 'ECHO is reading your lecture',    status: 'waiting' },
+      { label: 'Ready',        sub: 'Results prepared',                status: 'waiting' },
+    ],
+
+    setActiveStep(idx) {
+      this.steps = this.steps.map((s, i) => ({
+        ...s,
+        status: i < idx ? 'done' : (i === idx ? 'active' : 'waiting')
+      }));
+    },
+
+    init() {
+      // If already complete or failed on page load, handle immediately
+      var initialStatus = '{{ session.status }}';
+      if (initialStatus === 'complete') {
+        this.setActiveStep(this.steps.length); // all done
+        this.isComplete = true;
+        setTimeout(() => { window.location.href = '/results/{{ session.id }}/'; }, 600);
+        return;
+      }
+      if (initialStatus === 'failed') {
+        this.isFailed = true;
+        return;
+      }
+
+      // Set initial step from backend status
+      var idx = this.statusMap[initialStatus] ?? 0;
+      this.setActiveStep(idx);
+
+      // Start polling
+      this._poller = setInterval(() => {
+        fetch('/sessions/{{ session.id }}/status/')
+          .then(r => r.json())
+          .then(data => {
+            var stepIdx = this.statusMap[data.status] ?? 0;
+            this.setActiveStep(stepIdx);
+
+            if (data.status === 'complete' && data.result_url) {
+              clearInterval(this._poller);
+              this.setActiveStep(this.steps.length); // all done
+              this.isComplete = true;
+              setTimeout(() => { window.location.href = data.result_url; }, 1800);
+            } else if (data.status === 'failed') {
+              clearInterval(this._poller);
+              this.isFailed = true;
+            }
+          })
+          .catch(() => { /* silently ignore blips */ });
+      }, 2500);
+    }
+  };
+}
+</script>
+</body>
+</html>
