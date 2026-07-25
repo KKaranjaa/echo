@@ -80,7 +80,7 @@ def _generate_text_waterfall(prompt, max_tokens, temperature=1.0):
             from google.genai import types
             client = genai.Client(api_key=api_key, http_options={'api_version': 'v1'})
             response = client.models.generate_content(
-                model='gemini-2.0-flash',
+                model='gemini-1.5-flash',
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     temperature=temperature,
