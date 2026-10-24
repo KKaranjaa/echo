@@ -1,6 +1,7 @@
 import os
 import logging
 from django.conf import settings
+from django.core.cache import cache
 from celery import shared_task
 import anthropic
 from google import genai
@@ -15,7 +16,7 @@ import json
 
 logger = logging.getLogger(__name__)
 
-GROQ_MODEL = "llama-3.1-8b-instant"  # Free tier: 200k TPM, 131k context — handles long transcripts
+GROQ_MODELS = ["llama-3.3-70b-versatile", "openai/gpt-oss-120b", "llama-3.1-8b-instant"]
 
 def _get_api_keys(prefix):
     keys = []
@@ -40,51 +41,104 @@ def _generate_text_waterfall(prompt, max_tokens, temperature=1.0):
     """
     # 1. TRY GROQ
     for api_key in _get_api_keys('GROQ_API_KEY'):
+        cooldown_key = f"cooldown_{api_key}"
+        if cache.get(cooldown_key):
+            logger.info(f"Skipping Groq key (ending in ...{api_key[-4:] if api_key else 'None'}) due to cooldown.")
+            continue
+            
         try:
             client = Groq(api_key=api_key)
-            response = client.chat.completions.create(
-                model=GROQ_MODEL,
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=max_tokens,
-                temperature=temperature,
-            )
-            return response.choices[0].message.content
+            last_groq_err = None
+            for groq_model in GROQ_MODELS:
+                try:
+                    response = client.chat.completions.create(
+                        model=groq_model,
+                        messages=[{"role": "user", "content": prompt}],
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                    )
+                    return response.choices[0].message.content
+                except Exception as me:
+                    last_groq_err = me
+                    if "404" in str(me) or "model_not_found" in str(me):
+                        continue
+                    raise me
+            if last_groq_err:
+                raise last_groq_err
         except Exception as e:
-            logger.warning(f"Groq API failed with key (ending in ...{api_key[-4:] if api_key else 'None'}): {e}. Trying next...")
+            if "429" in str(e) or "Too Many Requests" in str(e):
+                logger.warning(f"Groq API rate limited with key (ending in ...{api_key[-4:] if api_key else 'None'}). Setting 60s cooldown. Trying next...")
+                cache.set(cooldown_key, True, timeout=60)
+            else:
+                logger.warning(f"Groq API failed with key (ending in ...{api_key[-4:] if api_key else 'None'}): {e}. Trying next...")
             continue
             
     logger.warning("All Groq keys failed. Falling back to Anthropic...")
 
     # 2. FALLBACK TO ANTHROPIC
     for api_key in _get_api_keys('ANTHROPIC_API_KEY'):
+        cooldown_key = f"cooldown_{api_key}"
+        if cache.get(cooldown_key):
+            logger.info(f"Skipping Anthropic key (ending in ...{api_key[-4:] if api_key else 'None'}) due to cooldown.")
+            continue
+            
         try:
             client = anthropic.Anthropic(api_key=api_key)
-            response = client.messages.create(
-                model="claude-3-5-sonnet-20241022",
-                max_tokens=max_tokens,
-                temperature=temperature,
-                messages=[{"role": "user", "content": prompt}]
-            )
+            params = {
+                "model": "claude-3-5-sonnet-20241022",
+                "max_tokens": max_tokens,
+                "messages": [{"role": "user", "content": prompt}],
+            }
+            if temperature is not None:
+                params["temperature"] = float(temperature)
+            try:
+                response = client.messages.create(**params)
+            except TypeError as te:
+                if "temperature" in str(te):
+                    params.pop("temperature", None)
+                    response = client.messages.create(**params)
+                else:
+                    raise
             return response.content[0].text
         except Exception as e:
-            logger.warning(f"Anthropic API failed with key (ending in ...{api_key[-4:] if api_key else 'None'}): {e}. Trying next...")
+            if "429" in str(e) or "rate_limit" in str(e).lower() or "Too Many Requests" in str(e):
+                logger.warning(f"Anthropic API rate limited with key (ending in ...{api_key[-4:] if api_key else 'None'}). Setting 60s cooldown. Trying next...")
+                cache.set(cooldown_key, True, timeout=60)
+            else:
+                logger.warning(f"Anthropic API failed with key (ending in ...{api_key[-4:] if api_key else 'None'}): {e}. Trying next...")
             continue
 
     logger.warning("All Anthropic keys failed. Falling back to Gemini...")
 
     # 3. FALLBACK TO GEMINI
     for api_key in _get_api_keys('GEMINI_API_KEY'):
+        cooldown_key = f"cooldown_{api_key}"
+        if cache.get(cooldown_key):
+            logger.info(f"Skipping Gemini key (ending in ...{api_key[-4:] if api_key else 'None'}) due to cooldown.")
+            continue
+            
         try:
+            from google import genai as _genai
             from google.genai import types
-            client = genai.Client(api_key=api_key, http_options={'api_version': 'v1'})
-            response = client.models.generate_content(
-                model='gemini-2.5-flash',
-                contents=prompt,
-                config=types.GenerateContentConfig(temperature=temperature)
-            )
-            return response.text
+            client = _genai.Client(api_key=api_key)
+            for gemini_model in ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-1.5-flash']:
+                try:
+                    response = client.models.generate_content(
+                        model=gemini_model,
+                        contents=prompt,
+                        config=types.GenerateContentConfig(temperature=temperature)
+                    )
+                    return response.text
+                except Exception as ge:
+                    if "404" in str(ge) or "NOT_FOUND" in str(ge):
+                        continue
+                    raise ge
         except Exception as e:
-            logger.warning(f"Gemini API failed with key (ending in ...{api_key[-4:] if api_key else 'None'}): {e}. Trying next...")
+            if "429" in str(e) or "Too Many Requests" in str(e) or "Quota exceeded" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                logger.warning(f"Gemini API rate limited with key (ending in ...{api_key[-4:] if api_key else 'None'}). Setting 60s cooldown. Trying next...")
+                cache.set(cooldown_key, True, timeout=60)
+            else:
+                logger.warning(f"Gemini API failed with key (ending in ...{api_key[-4:] if api_key else 'None'}): {e}. Trying next...")
             continue
 
     raise RuntimeError("All AI providers and backup keys failed or no API keys configured.")

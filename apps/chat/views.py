@@ -11,7 +11,6 @@ from .models import ChatMessage
 from .rag import retrieve_relevant_chunks
 from groq import Groq
 import anthropic
-from google import genai
 
 SYSTEM_PROMPT_TEMPLATE = """You are ECHO, an AI academic assistant. You have access to the transcript,
 summary, and key points from a specific lecture or study session.
@@ -32,7 +31,7 @@ Key points:
 Relevant transcript excerpts (for reference):
 {transcript_text}"""
 
-GROQ_CHAT_MODEL = "llama-3.1-8b-instant"
+GROQ_CHAT_MODEL = "llama-3.3-70b-versatile"
 
 
 def chat_page(request):
@@ -109,30 +108,38 @@ def chat_api(request, session_id):
     def event_stream():
         full_response = []
         
-        # 1. TRY GROQ
+        # 1. TRY GROQ (try multiple models in case one is deprecated)
         groq_api_key = os.environ.get('GROQ_API_KEY')
+        groq_chat_models = [GROQ_CHAT_MODEL, "openai/gpt-oss-120b", "llama-3.1-8b-instant"]
         if groq_api_key:
             client = Groq(api_key=groq_api_key)
-            try:
-                stream = client.chat.completions.create(
-                    model=GROQ_CHAT_MODEL,
-                    max_tokens=1000,
-                    messages=full_messages,
-                    stream=True,
-                )
-                for chunk in stream:
-                    delta = chunk.choices[0].delta
-                    if delta and delta.content:
-                        text = delta.content
-                        full_response.append(text)
-                        yield f"data: {json.dumps({'chunk': text})}\n\n"
-                        
-                assistant_text = "".join(full_response)
-                ChatMessage.objects.create(session=session, role='assistant', content=assistant_text)
-                yield f"data: {json.dumps({'done': True})}\n\n"
-                return  # Success, exit stream
-            except Exception as e:
-                print(f"Groq API failed: {e}. Falling back to Anthropic...")
+            groq_success = False
+            for groq_model in groq_chat_models:
+                try:
+                    stream = client.chat.completions.create(
+                        model=groq_model,
+                        max_tokens=1000,
+                        messages=full_messages,
+                        stream=True,
+                    )
+                    for chunk in stream:
+                        delta = chunk.choices[0].delta
+                        if delta and delta.content:
+                            text = delta.content
+                            full_response.append(text)
+                            yield f"data: {json.dumps({'chunk': text})}\n\n"
+                    assistant_text = "".join(full_response)
+                    ChatMessage.objects.create(session=session, role='assistant', content=assistant_text)
+                    yield f"data: {json.dumps({'done': True})}\n\n"
+                    groq_success = True
+                    return  # Success, exit stream
+                except Exception as e:
+                    if "404" in str(e) or "model_not_found" in str(e):
+                        continue
+                    print(f"Groq API failed ({groq_model}): {e}. Falling back...")
+                    break
+            if groq_success:
+                return
         
         # 2. FALLBACK TO ANTHROPIC
         anthropic_api_key = os.environ.get('ANTHROPIC_API_KEY')
@@ -160,47 +167,44 @@ def chat_api(request, session_id):
             except Exception as e:
                 print(f"Anthropic API failed: {e}. Falling back to Gemini...")
 
-        # 3. FALLBACK TO GEMINI
+        # 3. FALLBACK TO GEMINI (try multiple models in case one is deprecated)
         gemini_api_key = os.environ.get('GEMINI_API_KEY')
+        gemini_chat_models = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-1.5-flash']
         if gemini_api_key:
-            try:
-                client = genai.Client(api_key=gemini_api_key)
-                
-                # Gemini handles history differently (user/model)
-                gemini_history = []
-                for m in messages[:-1]:  # Exclude current message
-                    role = 'model' if m['role'] == 'assistant' else 'user'
-                    gemini_history.append({"role": role, "parts": [{"text": m['content']}]})
-                
-                chat = client.chats.create(
-                    model='gemini-2.5-flash',
-                    config=dict(
-                        system_instruction=system_prompt,
-                    )
-                )
-                
-                # Preload the history into the chat object if it supports it, 
-                # but the genai package `chats.create` allows passing history.
-                chat = client.chats.create(
-                    model='gemini-2.5-flash',
-                    history=gemini_history,
-                    config=dict(system_instruction=system_prompt)
-                )
-
-                response = chat.send_message_stream(user_message)
-                
-                for chunk in response:
-                    text = chunk.text
-                    if text:
-                        full_response.append(text)
-                        yield f"data: {json.dumps({'chunk': text})}\n\n"
+            for gemini_model in gemini_chat_models:
+                try:
+                    from google import genai as _genai
+                    client = _genai.Client(api_key=gemini_api_key)
                     
-                assistant_text = "".join(full_response)
-                ChatMessage.objects.create(session=session, role='assistant', content=assistant_text)
-                yield f"data: {json.dumps({'done': True})}\n\n"
-                return  # Success, exit stream
-            except Exception as e:
-                print(f"Gemini API failed: {e}.")
+                    # Gemini handles history differently (user/model)
+                    gemini_history = []
+                    for m in messages[:-1]:  # Exclude current message
+                        role = 'model' if m['role'] == 'assistant' else 'user'
+                        gemini_history.append({"role": role, "parts": [{"text": m['content']}]})
+                    
+                    chat = client.chats.create(
+                        model=gemini_model,
+                        history=gemini_history,
+                        config=dict(system_instruction=system_prompt)
+                    )
+
+                    response = chat.send_message_stream(user_message)
+                    
+                    for chunk in response:
+                        text = chunk.text
+                        if text:
+                            full_response.append(text)
+                            yield f"data: {json.dumps({'chunk': text})}\n\n"
+                        
+                    assistant_text = "".join(full_response)
+                    ChatMessage.objects.create(session=session, role='assistant', content=assistant_text)
+                    yield f"data: {json.dumps({'done': True})}\n\n"
+                    return  # Success, exit stream
+                except Exception as e:
+                    if "404" in str(e) or "NOT_FOUND" in str(e):
+                        continue
+                    print(f"Gemini API failed ({gemini_model}): {e}.")
+                    break
                 
         # 4. IF ALL FAIL
         error_msg = "I'm sorry, all of our AI providers are currently experiencing rate limits or downtime. Please try again later."
