@@ -98,13 +98,6 @@ def delete_session(request, session_id):
 def delete_account(request):
     user = request.user
 
-    # Gate: require a verified email address before allowing account deletion
-    if not user.emailaddress_set.filter(verified=True).exists():
-        return JsonResponse(
-            {'error': 'Please verify your email address before deleting your account. Check your inbox or visit Account Settings.'},
-            status=403
-        )
-
     # 1. Clean up media directories for all sessions owned by this user
     user_sessions = Session.objects.filter(user=user)
     for session in user_sessions:

@@ -177,7 +177,7 @@ AUTHENTICATION_BACKENDS = [
 ACCOUNT_LOGIN_METHODS = {'email', 'username'}
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
 
-ACCOUNT_EMAIL_VERIFICATION = "optional"  # Sends confirmation email on sign up without blocking immediate guest or account access
+ACCOUNT_EMAIL_VERIFICATION = "none"  # Email verification skipped
 ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
 ACCOUNT_EMAIL_SUBJECT_PREFIX = "[ECHO] "
 ACCOUNT_ADAPTER = "apps.core.email_adapter.SafeEmailAdapter"
