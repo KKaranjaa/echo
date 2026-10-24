@@ -44,8 +44,8 @@ window.echoUpload = function() {
 
     // ── File validation ───────────────────────────────────────────────
     _handleFile(file) {
-      if (file.size > 1024 * 1024 * 1024) {
-        this._toast('File exceeds 1 GB. Please upload a smaller file.', 'error');
+      if (file.size > 500 * 1024 * 1024) {
+        this._toast('File exceeds 500 MB limit. Please upload a smaller file or paste a link.', 'error');
         return;
       }
       const ext = file.name.match(/\.[^.]+$/)?.[0]?.toLowerCase() || '';
@@ -138,7 +138,11 @@ window.echoUpload = function() {
           }, 1000);
 
         } else {
-          this._toast('Upload failed (' + xhr.status + '). Please try again.', 'error');
+          let errText = 'Upload failed (' + xhr.status + ').';
+          if (xhr.responseText && xhr.responseText.length < 200 && !xhr.responseText.startsWith('<')) {
+            errText = xhr.responseText;
+          }
+          this._toast(errText, 'error');
           this.state = 'idle';
         }
       });

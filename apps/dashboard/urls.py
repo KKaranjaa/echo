@@ -14,4 +14,7 @@ urlpatterns = [
     # Session management
     path('sessions/<uuid:session_id>/assign-tab/', views.assign_session_tab, name='assign-session-tab'),
     path('sessions/<uuid:session_id>/delete/', views.delete_session, name='delete-session'),
+
+    # Account management
+    path('account/delete/', views.delete_account, name='delete-account'),
 ]

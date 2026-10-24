@@ -67,7 +67,7 @@ ALLOWED_EXTENSIONS = {
 # Free-tier Render has 512MB RAM — cap direct uploads at 200MB.
 # For yt-dlp downloads we only fetch audio-only anyway, so this limit
 # only applies to files dragged & dropped by the user.
-MAX_UPLOAD_SIZE = 200 * 1024 * 1024  # 200 MB
+MAX_UPLOAD_SIZE = 500 * 1024 * 1024  # 500 MB
 
 @ensure_csrf_cookie
 @require_safe
@@ -85,7 +85,7 @@ def upload_file(request):
     uploaded_file = request.FILES['audio_file']
     
     if uploaded_file.size > MAX_UPLOAD_SIZE:
-        return HttpResponseBadRequest("File size exceeds 1 GB limit.")
+        return HttpResponseBadRequest("File size exceeds 500 MB limit.")
 
     ext = os.path.splitext(uploaded_file.name)[1].lower()
     if ext not in ALLOWED_EXTENSIONS:

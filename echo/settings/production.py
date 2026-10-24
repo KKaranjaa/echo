@@ -83,11 +83,20 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
 
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+# ---------------------------------------------------------------------------
+# Email Configuration
+# ---------------------------------------------------------------------------
 EMAIL_HOST = os.environ.get("EMAIL_HOST", "smtp.gmail.com")
 EMAIL_PORT = int(os.environ.get("EMAIL_PORT", 587))
 EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "True") == "True"
-EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER")
-EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD")
-DEFAULT_FROM_EMAIL = os.environ.get("EMAIL_HOST_USER")
-EMAIL_TIMEOUT = 10  # Abort hung SMTP connections in 10s (prevents Gunicorn worker SIGKILL)
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL") or EMAIL_HOST_USER or "noreply@echo-ai.com"
+EMAIL_TIMEOUT = int(os.environ.get("EMAIL_TIMEOUT", 10))  # Abort hung SMTP connections in 10s
+
+if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+else:
+    # If SMTP credentials are not configured on Render, log to console
+    # instead of crashing or hanging the Gunicorn worker
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"

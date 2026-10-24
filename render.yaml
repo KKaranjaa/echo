@@ -18,6 +18,16 @@ services:
         sync: false   # set in Render dashboard
       - key: ANTHROPIC_API_KEY
         sync: false   # set in Render dashboard
+      - key: EMAIL_HOST_USER
+        sync: false   # set in Render dashboard (e.g. your_email@gmail.com)
+      - key: EMAIL_HOST_PASSWORD
+        sync: false   # set in Render dashboard (Gmail 16-char App Password)
+      - key: EMAIL_HOST
+        value: smtp.gmail.com
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_USE_TLS
+        value: "True"
     disk:
       name: media
       mountPath: /var/data/media

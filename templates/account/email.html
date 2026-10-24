@@ -86,6 +86,39 @@
             Add Email
           </button>
         </form>
+
+        <hr class="my-6" style="border-color: var(--echo-border);">
+
+        <!-- Danger Zone -->
+        <div class="rounded-2xl p-5 border" style="border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.04);">
+          <h3 class="text-sm font-bold text-red-500 mb-1">Danger Zone</h3>
+          <p class="text-xs mb-3" style="color: var(--echo-muted);">Permanently delete your account and all associated sessions, transcripts, summaries, and history. This action is irreversible.</p>
+          <button type="button" onclick="confirmDeleteAccount()"
+                  class="px-4 py-2 rounded-xl text-xs font-bold text-white transition-transform hover:scale-[1.02]"
+                  style="background: #ef4444;">
+            Delete Account
+          </button>
+        </div>
+
+        <script>
+          async function confirmDeleteAccount() {
+            if (!confirm("Are you sure you want to PERMANENTLY delete your account and all stored lectures? This action cannot be undone.")) return;
+            const csrf = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+            const resp = await fetch('/dashboard/account/delete/', {
+              method: 'POST',
+              headers: {
+                'X-CSRFToken': csrf,
+                'Content-Type': 'application/json'
+              }
+            });
+            const data = await resp.json();
+            if (data.ok) {
+              window.location.href = data.redirect || '/';
+            } else {
+              alert(data.error || 'Failed to delete account.');
+            }
+          }
+        </script>
       </div>
     </main>
   </div>

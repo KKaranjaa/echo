@@ -22,10 +22,14 @@ def dashboard_index(request):
         except Tab.DoesNotExist:
             pass
 
+    # Check if the user has at least one verified email address
+    email_verified = request.user.emailaddress_set.filter(verified=True).exists()
+
     return render(request, 'dashboard/index.html', {
         'sessions': sessions,
         'tabs': tabs,
         'active_tab': active_tab,
+        'email_verified': email_verified,
     })
 
 
@@ -76,9 +80,45 @@ def assign_session_tab(request, session_id):
     return JsonResponse({'ok': True})
 
 
+import os
+import shutil
+from django.contrib.auth import logout
+from django.conf import settings
+
 @login_required
 @require_POST
 def delete_session(request, session_id):
     session = get_object_or_404(Session, id=session_id, user=request.user)
     session.delete()
     return JsonResponse({'ok': True})
+
+
+@login_required
+@require_POST
+def delete_account(request):
+    user = request.user
+
+    # Gate: require a verified email address before allowing account deletion
+    if not user.emailaddress_set.filter(verified=True).exists():
+        return JsonResponse(
+            {'error': 'Please verify your email address before deleting your account. Check your inbox or visit Account Settings.'},
+            status=403
+        )
+
+    # 1. Clean up media directories for all sessions owned by this user
+    user_sessions = Session.objects.filter(user=user)
+    for session in user_sessions:
+        upload_dir = os.path.join(settings.MEDIA_ROOT, 'uploads', str(session.id))
+        if os.path.exists(upload_dir):
+            try:
+                shutil.rmtree(upload_dir, ignore_errors=True)
+            except Exception:
+                pass
+
+    # 2. Log out the user
+    logout(request)
+
+    # 3. Permanently delete the user model (cascades to sessions, transcripts, summaries, tabs, email records)
+    user.delete()
+
+    return JsonResponse({'ok': True, 'redirect': '/'})

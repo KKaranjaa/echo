@@ -45,7 +45,7 @@ def _get_cookies_file():
 
 # ── Limits (sourced from the authoritative locations) ────────────────────────
 # Size limit: imported from uploads.views (single source of truth)
-from apps.uploads.views import MAX_UPLOAD_SIZE  # 1 GB
+from apps.uploads.views import MAX_UPLOAD_SIZE  # 500 MB
 
 # Duration limit: same value used in transcription/tasks.py line 35
 MAX_DURATION_SECONDS = 12000  # 200 minutes
@@ -114,8 +114,8 @@ def _run_fetch(session, url):
             resp = requests.head(url, allow_redirects=True, timeout=15)
             content_length = int(resp.headers.get('Content-Length', 0))
             if content_length and content_length > MAX_UPLOAD_SIZE:
-                size_gb = content_length / (1024 ** 3)
-                _set_failed(session, f"This file is {size_gb:.1f} GB, which exceeds the 1 GB limit.")
+                size_mb = content_length / (1024 ** 2)
+                _set_failed(session, f"This file is {size_mb:.0f} MB, which exceeds the 500 MB limit.")
                 return
             # Can't determine duration from a HEAD request for direct links.
             # Duration will be validated by the transcription pipeline.
@@ -180,8 +180,8 @@ def _run_fetch(session, url):
         # Estimated file size check (if available)
         filesize_approx = info.get('filesize') or info.get('filesize_approx')
         if filesize_approx and filesize_approx > MAX_UPLOAD_SIZE:
-            size_gb = filesize_approx / (1024 ** 3)
-            _set_failed(session, f"The estimated audio size ({size_gb:.1f} GB) exceeds the 1 GB limit.")
+            size_mb = filesize_approx / (1024 ** 2)
+            _set_failed(session, f"The estimated audio size ({size_mb:.0f} MB) exceeds the 500 MB limit.")
             return
 
         # Populate title if user didn't provide one
@@ -241,7 +241,7 @@ def _download_direct(url, tmp_dir, upload_dir, session):
                     f.write(chunk)
                     written += len(chunk)
                     if written > MAX_UPLOAD_SIZE:
-                        _set_failed(session, "The file exceeds the 1 GB size limit.")
+                        _set_failed(session, "The file exceeds the 500 MB size limit.")
                         return ext
         
         final_path = os.path.join(upload_dir, f'original_audio{ext}')
@@ -345,9 +345,9 @@ def _download_yt_dlp(url, tmp_dir, upload_dir, session):
     # Final size check (in case estimate was unavailable at metadata stage)
     actual_size = os.path.getsize(downloaded)
     if actual_size > MAX_UPLOAD_SIZE:
-        size_gb = actual_size / (1024 ** 3)
+        size_mb = actual_size / (1024 ** 2)
         os.remove(downloaded)
-        _set_failed(session, f"The downloaded file ({size_gb:.1f} GB) exceeds the 1 GB limit.")
+        _set_failed(session, f"The downloaded file ({size_mb:.0f} MB) exceeds the 500 MB limit.")
         return ext
 
     final_path = os.path.join(upload_dir, f'original_audio{ext}')

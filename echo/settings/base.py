@@ -123,7 +123,18 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # rather than holding the whole thing in RAM. Set this low (5MB) so large
 # uploads are always streamed to /tmp rather than buffered in memory.
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024   # 5 MB threshold → stream to disk
-DATA_UPLOAD_MAX_MEMORY_SIZE = 210 * 1024 * 1024  # 210 MB hard ceiling for entire request body
+DATA_UPLOAD_MAX_MEMORY_SIZE = 525 * 1024 * 1024  # 525 MB hard ceiling for entire request body
+
+# ---------------------------------------------------------------------------
+# Caching
+# ---------------------------------------------------------------------------
+# Default to in-memory cache for local development (no Redis needed).
+# production.py overrides this with django_redis backed by the Redis container.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+    }
+}
 
 # ---------------------------------------------------------------------------
 # Celery
@@ -166,10 +177,10 @@ AUTHENTICATION_BACKENDS = [
 ACCOUNT_LOGIN_METHODS = {'email', 'username'}
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
 
-# Email verification
-ACCOUNT_EMAIL_VERIFICATION = "none"  # Set to "mandatory" to re-enable email verification
+ACCOUNT_EMAIL_VERIFICATION = "optional"  # Sends confirmation email on sign up without blocking immediate guest or account access
 ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
 ACCOUNT_EMAIL_SUBJECT_PREFIX = "[ECHO] "
+ACCOUNT_ADAPTER = "apps.core.email_adapter.SafeEmailAdapter"
 
 # We want users to log in directly after signing up
 LOGIN_REDIRECT_URL = "/dashboard/"
