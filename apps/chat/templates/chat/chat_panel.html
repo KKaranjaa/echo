@@ -29,7 +29,15 @@
                         "{{ question }}"
                     </button>
                     {% empty %}
-                    <!-- Fallback if no questions -->
+                    <button @click="setInput('What are the key takeaways from this lecture?')" class="px-4 py-3 text-sm font-semibold text-left rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 border shadow-sm echo-btn" style="background-color: var(--echo-card); border-color: var(--echo-border); color: var(--echo-deep);">
+                        "What are the key takeaways from this lecture?"
+                    </button>
+                    <button @click="setInput('Can you quiz me with 5 practice questions?')" class="px-4 py-3 text-sm font-semibold text-left rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 border shadow-sm echo-btn" style="background-color: var(--echo-card); border-color: var(--echo-border); color: var(--echo-deep);">
+                        "Can you quiz me with 5 practice questions?"
+                    </button>
+                    <button @click="setInput('What are the most testable concepts or likely exam questions?')" class="px-4 py-3 text-sm font-semibold text-left rounded-xl transition-transform hover:-translate-y-0.5 active:translate-y-0 border shadow-sm echo-btn" style="background-color: var(--echo-card); border-color: var(--echo-border); color: var(--echo-deep);">
+                        "What are the most testable concepts or likely exam questions?"
+                    </button>
                     {% endfor %}
                 </div>
             </div>
@@ -52,10 +60,18 @@
                          :class="msg.role === 'user' ? 'rounded-br-sm text-right' : 'rounded-bl-sm text-left'"
                          :style="msg.role === 'user' ? 'background-color: var(--echo-accent-soft); color: var(--echo-deep); box-shadow: inset 1px 1px 3px rgba(255,255,255,0.7), inset -1px -1px 3px rgba(0,0,0,0.05);' : 'background-color: var(--echo-card); color: var(--echo-deep); border: 1px solid var(--echo-border);'">
                         
-                        <p class="whitespace-pre-wrap leading-relaxed font-medium" x-text="msg.content"></p>
+                        <!-- Thinking state when streaming first begins -->
+                        <template x-if="msg.role === 'assistant' && msg.isStreaming && !msg.content">
+                            <div class="flex items-center gap-2 py-0.5 text-xs font-semibold" style="color: var(--echo-muted);">
+                                <span class="echo-spinner" style="width: 12px; height: 12px;"></span>
+                                <span>Thinking...</span>
+                            </div>
+                        </template>
+
+                        <p class="whitespace-pre-wrap leading-relaxed font-medium" x-show="msg.content || !msg.isStreaming" x-text="msg.content"></p>
                         
                         <!-- Streaming Indicator -->
-                        <template x-if="msg.isStreaming">
+                        <template x-if="msg.isStreaming && msg.content">
                             <span class="inline-block w-2 h-4 ml-1 bg-[color:var(--echo-accent)] animate-pulse align-middle"></span>
                         </template>
 

@@ -29,14 +29,20 @@
     <!-- Export Actions -->
     <div class="echo-card p-3 flex flex-col gap-2">
       <h4 class="text-xs font-bold uppercase tracking-wider mb-1 px-2" style="color: var(--echo-muted);">Export</h4>
-      <button class="text-left px-3 py-2 text-sm font-semibold rounded-lg hover:bg-[color:var(--echo-surface)] transition-colors echo-btn" style="color: var(--echo-deep);">
-        📋 Copy summary
+      <button @click="copySummary()" class="text-left px-3 py-2 text-sm font-semibold rounded-lg hover:bg-[color:var(--echo-surface)] transition-all flex items-center justify-between echo-btn" style="color: var(--echo-deep);">
+        <span class="flex items-center gap-2">
+          <svg class="w-4 h-4 text-[color:var(--echo-accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+          <span x-text="copiedSummary ? 'Copied to clipboard!' : 'Copy summary'">Copy summary</span>
+        </span>
+        <span x-show="copiedSummary" class="text-xs font-bold text-emerald-500">✓</span>
       </button>
-      <button class="text-left px-3 py-2 text-sm font-semibold rounded-lg hover:bg-[color:var(--echo-surface)] transition-colors echo-btn" style="color: var(--echo-deep);">
-        📄 Download .txt
+      <button @click="downloadTxt()" class="text-left px-3 py-2 text-sm font-semibold rounded-lg hover:bg-[color:var(--echo-surface)] transition-all flex items-center gap-2 echo-btn" style="color: var(--echo-deep);">
+        <svg class="w-4 h-4 text-[color:var(--echo-accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <span>Download .txt</span>
       </button>
-      <button class="text-left px-3 py-2 text-sm font-semibold rounded-lg hover:bg-[color:var(--echo-surface)] transition-colors echo-btn" style="color: var(--echo-deep);">
-        🗂 Download CSV
+      <button @click="downloadCsv()" class="text-left px-3 py-2 text-sm font-semibold rounded-lg hover:bg-[color:var(--echo-surface)] transition-all flex items-center gap-2 echo-btn" style="color: var(--echo-deep);">
+        <svg class="w-4 h-4 text-[color:var(--echo-accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 4h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        <span>Download CSV</span>
       </button>
     </div>
   </aside>
@@ -120,9 +126,29 @@
 
       <div x-show="activeTab === 'ask_echo'" x-transition:enter="transition ease-out duration-150 delay-150" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="h-full" style="display: none;">
         <!-- Inject chat panel from Sprint 4.2 -->
-        <!-- Normally we would use HTMX here, but for now we just render it or include it if available -->
         <div hx-get="/chat/{{ session.id }}/" hx-trigger="intersect once" class="h-full">
-           <div class="animate-pulse h-full bg-[color:var(--echo-card)] rounded-xl opacity-50 flex items-center justify-center font-bold text-[color:var(--echo-muted)]">Loading Ask ECHO...</div>
+           <!-- Premium Skeleton Loader for Chat Interface -->
+           <div class="h-full flex flex-col p-6 gap-5 bg-white/20 rounded-2xl">
+             <!-- Header skeleton -->
+             <div class="flex items-center gap-3 pb-4 border-b border-[color:var(--echo-border)]">
+               <div class="w-10 h-10 rounded-full echo-skeleton shrink-0"></div>
+               <div class="flex flex-col gap-2 flex-1">
+                 <div class="h-4 w-32 echo-skeleton"></div>
+                 <div class="h-3 w-48 echo-skeleton"></div>
+               </div>
+             </div>
+             <!-- Center empty state skeleton -->
+             <div class="flex flex-col gap-3 flex-1 justify-center max-w-md mx-auto w-full py-4">
+               <div class="w-16 h-16 rounded-full mx-auto echo-skeleton mb-1"></div>
+               <div class="h-5 w-3/4 mx-auto echo-skeleton"></div>
+               <div class="h-3.5 w-1/2 mx-auto echo-skeleton mb-4"></div>
+               <div class="h-11 w-full echo-skeleton rounded-xl"></div>
+               <div class="h-11 w-full echo-skeleton rounded-xl"></div>
+               <div class="h-11 w-full echo-skeleton rounded-xl"></div>
+             </div>
+             <!-- Input bar skeleton -->
+             <div class="h-12 w-full echo-skeleton rounded-xl mt-auto"></div>
+           </div>
         </div>
       </div>
       
@@ -231,6 +257,26 @@
 </div>
 
 
+<script id="session-export-data" type="application/json">
+{
+  "filename": "{{ session.original_filename|escapejs }}",
+  "created_at": "{{ session.created_at|date:'Y-m-d H:i' }}",
+  "duration": "{% if session.duration_seconds %}{{ session.duration_seconds|floatformat:0 }}s{% else %}N/A{% endif %}",
+  "language": "{{ session.detected_language|default:'EN' }}",
+  "summary_paragraph": "{{ session.summary.summary_paragraph|default:''|escapejs }}",
+  "key_points": [
+    {% for kp in session.summary.key_points %}"{{ kp|escapejs }}"{% if not forloop.last %},{% endif %}{% endfor %}
+  ],
+  "action_items": [
+    {% for a in session.summary.action_items %}{"text": "{{ a.text|escapejs }}", "assignee": "{{ a.assignee_hint|default:''|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}
+  ],
+  "flashcards": [
+    {% for f in session.summary.flashcards %}{"question": "{{ f.question|escapejs }}", "answer": "{{ f.answer|escapejs }}"}{% if not forloop.last %},{% endif %}{% endfor %}
+  ],
+  "raw_transcript": "{{ session.transcript.raw_text|default:''|escapejs }}"
+}
+</script>
+
 <script>
   function sessionDetail() {
     const SESSION_ID = '{{ session.id }}';
@@ -239,12 +285,104 @@
 
     return {
       activeTab: 'summary',
+      copiedSummary: false,
       tabs: [
         { id: 'summary',     label: 'Summary',     shortcut: 'S' },
         { id: 'tasks',       label: 'Tasks',       shortcut: 'T', badge: parseInt('{{ session.summary.action_items|length|default:"0" }}') || 0 },
         { id: 'flashcards',  label: 'Flashcards',  shortcut: 'F', badge: parseInt('{{ session.summary.flashcards|length|default:"0" }}') || 0 },
         { id: 'transcript',  label: 'Transcript',  shortcut: 'R' },
       ],
+
+      _getExportData() {
+        const el = document.getElementById('session-export-data');
+        if (!el) return null;
+        try { return JSON.parse(el.textContent); } catch(e) { return null; }
+      },
+
+      copySummary() {
+        const data = this._getExportData();
+        if (!data || (!data.summary_paragraph && (!data.key_points || !data.key_points.length))) {
+          if (window.Alpine && Alpine.store && Alpine.store('toasts')) {
+            Alpine.store('toasts').addToast('No summary content available to copy', 'error');
+          }
+          return;
+        }
+        let text = `${data.filename}\n\nEXECUTIVE SUMMARY:\n${data.summary_paragraph}\n\nKEY POINTS:\n`;
+        (data.key_points || []).forEach((kp, idx) => {
+          text += `${idx + 1}. ${kp}\n`;
+        });
+        navigator.clipboard.writeText(text).then(() => {
+          this.copiedSummary = true;
+          setTimeout(() => { this.copiedSummary = false; }, 2000);
+          if (window.Alpine && Alpine.store && Alpine.store('toasts')) {
+            Alpine.store('toasts').addToast('Summary copied to clipboard!', 'success');
+          }
+        });
+      },
+
+      downloadTxt() {
+        const data = this._getExportData();
+        if (!data) return;
+        let content = `ECHO LECTURE NOTES\n`;
+        content += `=========================\n`;
+        content += `File: ${data.filename}\nDate: ${data.created_at}\nDuration: ${data.duration}\nLanguage: ${data.language}\n\n`;
+        content += `-------------------------\nEXECUTIVE SUMMARY\n-------------------------\n${data.summary_paragraph || 'N/A'}\n\n`;
+        content += `-------------------------\nKEY POINTS\n-------------------------\n`;
+        (data.key_points || []).forEach((kp, idx) => { content += `${idx + 1}. ${kp}\n`; });
+        if (data.action_items && data.action_items.length) {
+          content += `\n-------------------------\nACTION ITEMS\n-------------------------\n`;
+          data.action_items.forEach((a, idx) => { content += `[ ] ${a.text}${a.assignee ? ' (@' + a.assignee + ')' : ''}\n`; });
+        }
+        if (data.flashcards && data.flashcards.length) {
+          content += `\n-------------------------\nFLASHCARDS & STUDY Q&A\n-------------------------\n`;
+          data.flashcards.forEach((f, idx) => { content += `Q${idx + 1}: ${f.question}\nA: ${f.answer}\n\n`; });
+        }
+        if (data.raw_transcript) {
+          content += `\n-------------------------\nFULL TRANSCRIPT\n-------------------------\n${data.raw_transcript}\n`;
+        }
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const cleanName = (data.filename || 'lecture').replace(/[^a-zA-Z0-9_\-]/g, '_');
+        a.download = `${cleanName}_notes.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        if (window.Alpine && Alpine.store && Alpine.store('toasts')) {
+          Alpine.store('toasts').addToast('Lecture notes downloaded (.txt)', 'success');
+        }
+      },
+
+      downloadCsv() {
+        const data = this._getExportData();
+        if (!data) return;
+        let csv = `"Type","Item / Question","Detail / Answer","Assignee"\n`;
+        (data.key_points || []).forEach((kp, idx) => {
+          csv += `"Key Point","Point ${idx + 1}","${(kp || '').replace(/"/g, '""')}",""\n`;
+        });
+        (data.action_items || []).forEach((a) => {
+          csv += `"Task","${(a.text || '').replace(/"/g, '""')}","","${(a.assignee || '').replace(/"/g, '""')}"\n`;
+        });
+        (data.flashcards || []).forEach((f) => {
+          csv += `"Flashcard","${(f.question || '').replace(/"/g, '""')}","${(f.answer || '').replace(/"/g, '""')}",""\n`;
+        });
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const cleanName = (data.filename || 'lecture').replace(/[^a-zA-Z0-9_\-]/g, '_');
+        a.download = `${cleanName}_study_materials.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        if (window.Alpine && Alpine.store && Alpine.store('toasts')) {
+          Alpine.store('toasts').addToast('Study materials downloaded (.csv)', 'success');
+        }
+      },
+
       init() {
         // ── Restore state saved before navigating to chat ──────────────────
         try {

@@ -363,3 +363,49 @@ html:not(.dark) .echo-orb {
   left: 40%;
   opacity: 0.45;
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   PREMIUM SKELETON SHIMMER & LOADING UTILITIES
+═══════════════════════════════════════════════════════════════════ */
+@keyframes echo-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.echo-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(192, 132, 252, 0.08) 25%,
+    rgba(192, 132, 252, 0.24) 50%,
+    rgba(192, 132, 252, 0.08) 75%
+  );
+  background-size: 200% 100%;
+  animation: echo-shimmer 1.8s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+html.dark .echo-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 25%,
+    rgba(192, 132, 252, 0.15) 50%,
+    rgba(255, 255, 255, 0.03) 75%
+  );
+  background-size: 200% 100%;
+  animation: echo-shimmer 1.8s ease-in-out infinite;
+}
+
+/* Spinner for button loading states */
+@keyframes echo-btn-spin {
+  to { transform: rotate(360deg); }
+}
+.echo-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: echo-btn-spin 0.65s linear infinite;
+  vertical-align: middle;
+}

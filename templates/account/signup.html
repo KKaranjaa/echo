@@ -10,7 +10,7 @@
       <p class="text-sm mt-1" style="color: var(--echo-muted);">Join ECHO to manage your sessions</p>
     </div>
 
-    <form class="flex flex-col gap-4" method="POST" action="{% url 'account_signup' %}">
+    <form class="flex flex-col gap-4" method="POST" action="{% url 'account_signup' %}" x-data="{ submitting: false }" @submit="submitting = true">
       {% csrf_token %}
       
       {% if form.non_field_errors %}
@@ -85,10 +85,12 @@
         <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}" />
       {% endif %}
 
-      <button type="submit"
-              class="w-full py-3 rounded-xl text-sm font-bold shadow-lg hover:scale-[1.02] active:scale-95 transition-transform mt-2"
+      <button type="submit" :disabled="submitting"
+              class="w-full py-3 rounded-xl text-sm font-bold shadow-lg transition-all mt-2 flex items-center justify-center gap-2"
+              :class="submitting ? 'opacity-75 cursor-wait' : 'hover:scale-[1.02] active:scale-95 cursor-pointer'"
               style="background: var(--echo-accent); color: white;">
-        Sign Up
+        <span x-show="submitting" class="echo-spinner" style="width:16px;height:16px;border-width:2px;display:none;"></span>
+        <span x-text="submitting ? 'Creating account...' : 'Sign Up'">Sign Up</span>
       </button>
       
       <div class="text-center text-xs pt-1" style="color: var(--echo-muted);">

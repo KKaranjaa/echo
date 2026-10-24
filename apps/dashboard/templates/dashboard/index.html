@@ -225,21 +225,45 @@
       </div>
 
       {% else %}
-      {# Empty state #}
-      <div class="flex flex-col items-center justify-center h-full gap-4 text-center py-24">
-        <div class="w-20 h-20 rounded-full flex items-center justify-center mb-2"
-             style="background:rgba(192,132,252,0.1);">
+      {% if active_tab %}
+      {# Empty Folder state #}
+      <div class="flex flex-col items-center justify-center h-full gap-4 text-center py-20 animate-fade-in">
+        <div class="w-20 h-20 rounded-2xl flex items-center justify-center mb-2"
+             style="background:rgba(192,132,252,0.1); border: 1.5px dashed var(--echo-accent);">
           <svg class="w-10 h-10" style="color:var(--echo-accent)" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-            <path d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 012-2h4l2 3h8a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
           </svg>
         </div>
-        <h2 class="text-xl font-bold" style="color:var(--echo-text);">No sessions yet</h2>
-        <p class="text-sm max-w-xs" style="color:var(--echo-subtext);">Upload a lecture or paste a link to get started. Everything you process will appear here.</p>
-        <a href="/" class="mt-2 px-6 py-2.5 rounded-full font-bold text-sm shadow-lg"
-           style="background:linear-gradient(135deg,var(--echo-accent),var(--echo-muted));color:white;">
-          Start a new session →
+        <h2 class="text-xl font-bold" style="color:var(--echo-text);">"{{ active_tab.name }}" is empty</h2>
+        <p class="text-sm max-w-sm" style="color:var(--echo-subtext);">Move existing lectures into this folder using the folder icon on any lecture card, or upload a new recording.</p>
+        <div class="flex items-center gap-3 mt-2">
+          <a href="{% url 'dashboard:index' %}" class="px-5 py-2.5 rounded-xl font-semibold text-xs border border-[color:var(--echo-border)] hover:bg-white/10 transition" style="color:var(--echo-text);">
+            ← All lectures
+          </a>
+          <a href="/" class="px-5 py-2.5 rounded-xl font-bold text-xs text-white shadow-lg transition hover:scale-[1.02]"
+             style="background:var(--echo-accent);">
+            Upload recording +
+          </a>
+        </div>
+      </div>
+      {% else %}
+      {# Global No Sessions state #}
+      <div class="flex flex-col items-center justify-center h-full gap-4 text-center py-20 animate-fade-in">
+        <div class="w-24 h-24 rounded-full flex items-center justify-center mb-2 relative"
+             style="background:rgba(192,132,252,0.12);">
+          <div class="absolute inset-0 rounded-full animate-ping opacity-20" style="background:var(--echo-accent);"></div>
+          <svg class="w-12 h-12 relative z-10" style="color:var(--echo-accent)" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+          </svg>
+        </div>
+        <h2 class="text-2xl font-bold tracking-tight" style="color:var(--echo-text);">Drop your first lecture</h2>
+        <p class="text-sm max-w-sm" style="color:var(--echo-subtext);">Upload an audio file or paste a link. ECHO will transcribe, summarize, extract tasks and create flashcards automatically.</p>
+        <a href="/" class="mt-2 px-7 py-3 rounded-xl font-bold text-sm text-white shadow-xl hover:scale-[1.03] active:scale-95 transition-all"
+           style="background:linear-gradient(135deg,var(--echo-accent),var(--echo-muted));">
+          Start your first session →
         </a>
       </div>
+      {% endif %}
       {% endif %}
     </div>
   </main>
@@ -248,19 +272,22 @@
   <div x-show="showNewFolder" x-transition
        class="fixed inset-0 z-[200] flex items-center justify-center"
        style="background:rgba(0,0,0,0.5); display:none;" x-cloak>
-    <div class="echo-card p-6 w-80 flex flex-col gap-4" @click.outside="showNewFolder = false">
+    <div class="echo-card p-6 w-80 flex flex-col gap-4" @click.outside="if(!isCreatingFolder) showNewFolder = false">
       <h3 class="font-bold text-lg" style="color:var(--echo-text);">New folder</h3>
-      <input x-model="newFolderName" @keydown.enter="createFolder()" type="text" placeholder="Folder name…"
-             class="w-full px-4 py-2 rounded-xl text-sm outline-none"
+      <input x-model="newFolderName" @keydown.enter="createFolder()" :disabled="isCreatingFolder" type="text" placeholder="Folder name…"
+             class="w-full px-4 py-2 rounded-xl text-sm outline-none disabled:opacity-50"
              style="background:rgba(255,255,255,0.07);border:1.5px solid var(--echo-border);color:var(--echo-text);"
              @focus="$el.style.borderColor='var(--echo-accent)'" @blur="$el.style.borderColor='var(--echo-border)'"
              x-ref="folderInput" @x-show.window="$nextTick(() => $refs.folderInput.focus())">
       <div class="flex gap-2 justify-end">
-        <button @click="showNewFolder = false"
-                class="px-4 py-2 rounded-xl text-sm font-medium" style="color:var(--echo-subtext);">Cancel</button>
-        <button @click="createFolder()"
-                class="px-4 py-2 rounded-xl text-sm font-bold"
-                style="background:var(--echo-accent);color:white;">Create</button>
+        <button @click="showNewFolder = false" :disabled="isCreatingFolder"
+                class="px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/10 transition" style="color:var(--echo-subtext);">Cancel</button>
+        <button @click="createFolder()" :disabled="isCreatingFolder || !newFolderName.trim()"
+                class="px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-1.5 transition-all disabled:opacity-50"
+                style="background:var(--echo-accent);color:white;">
+          <span class="echo-spinner" x-show="isCreatingFolder"></span>
+          <span x-text="isCreatingFolder ? 'Creating...' : 'Create'">Create</span>
+        </button>
       </div>
     </div>
   </div>
@@ -269,18 +296,21 @@
   <div x-show="renameTabId" x-transition
        class="fixed inset-0 z-[200] flex items-center justify-center"
        style="background:rgba(0,0,0,0.5); display:none;" x-cloak>
-    <div class="echo-card p-6 w-80 flex flex-col gap-4" @click.outside="renameTabId = null">
+    <div class="echo-card p-6 w-80 flex flex-col gap-4" @click.outside="if(!isRenaming) renameTabId = null">
       <h3 class="font-bold text-lg" style="color:var(--echo-text);">Rename folder</h3>
-      <input x-model="renameValue" @keydown.enter="submitRename()" type="text"
-             class="w-full px-4 py-2 rounded-xl text-sm outline-none"
+      <input x-model="renameValue" @keydown.enter="submitRename()" :disabled="isRenaming" type="text"
+             class="w-full px-4 py-2 rounded-xl text-sm outline-none disabled:opacity-50"
              style="background:rgba(255,255,255,0.07);border:1.5px solid var(--echo-border);color:var(--echo-text);"
              @focus="$el.style.borderColor='var(--echo-accent)'" @blur="$el.style.borderColor='var(--echo-border)'">
       <div class="flex gap-2 justify-end">
-        <button @click="renameTabId = null"
-                class="px-4 py-2 rounded-xl text-sm font-medium" style="color:var(--echo-subtext);">Cancel</button>
-        <button @click="submitRename()"
-                class="px-4 py-2 rounded-xl text-sm font-bold"
-                style="background:var(--echo-accent);color:white;">Save</button>
+        <button @click="renameTabId = null" :disabled="isRenaming"
+                class="px-4 py-2 rounded-xl text-sm font-medium hover:bg-white/10 transition" style="color:var(--echo-subtext);">Cancel</button>
+        <button @click="submitRename()" :disabled="isRenaming || !renameValue.trim()"
+                class="px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-1.5 transition-all disabled:opacity-50"
+                style="background:var(--echo-accent);color:white;">
+          <span class="echo-spinner" x-show="isRenaming"></span>
+          <span x-text="isRenaming ? 'Saving...' : 'Save'">Save</span>
+        </button>
       </div>
     </div>
   </div>
@@ -298,9 +328,10 @@ function dashboardApp() {
     renameTabId: null,
     renameValue: '',
     deletingIds: new Set(),
+    isCreatingFolder: false,
+    isRenaming: false,
 
     _toast(msg, type = 'success') {
-      // Use the global Alpine store toast system
       if (window.Alpine && Alpine.store && Alpine.store('toasts')) {
         Alpine.store('toasts').addToast(msg, type);
       }
@@ -308,16 +339,27 @@ function dashboardApp() {
 
     async createFolder() {
       const name = this.newFolderName.trim();
-      if (!name) return;
-      const r = await fetch("{% url 'dashboard:create-tab' %}", {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json', 'X-CSRFToken': this.csrf()},
-        body: JSON.stringify({ name })
-      });
-      if (r.ok) {
-        this.showNewFolder = false;
-        this.newFolderName = '';
-        window.location.reload();
+      if (!name || this.isCreatingFolder) return;
+      this.isCreatingFolder = true;
+      try {
+        const r = await fetch("{% url 'dashboard:create-tab' %}", {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', 'X-CSRFToken': this.csrf()},
+          body: JSON.stringify({ name })
+        });
+        if (r.ok) {
+          this.showNewFolder = false;
+          this.newFolderName = '';
+          this._toast('Folder created');
+          window.location.reload();
+        } else {
+          const errData = await r.json().catch(() => ({}));
+          this._toast(errData.error || 'Failed to create folder', 'error');
+        }
+      } catch (e) {
+        this._toast('Network error creating folder', 'error');
+      } finally {
+        this.isCreatingFolder = false;
       }
     },
 
@@ -327,15 +369,26 @@ function dashboardApp() {
     },
 
     async submitRename() {
-      if (!this.renameTabId || !this.renameValue.trim()) return;
-      const r = await fetch(`/dashboard/tabs/${this.renameTabId}/rename/`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json', 'X-CSRFToken': this.csrf()},
-        body: JSON.stringify({ name: this.renameValue.trim() })
-      });
-      if (r.ok) {
-        this.tabNames[this.renameTabId] = this.renameValue.trim();
-        this.renameTabId = null;
+      if (!this.renameTabId || !this.renameValue.trim() || this.isRenaming) return;
+      this.isRenaming = true;
+      try {
+        const r = await fetch(`/dashboard/tabs/${this.renameTabId}/rename/`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', 'X-CSRFToken': this.csrf()},
+          body: JSON.stringify({ name: this.renameValue.trim() })
+        });
+        if (r.ok) {
+          this.tabNames[this.renameTabId] = this.renameValue.trim();
+          this._toast('Folder renamed');
+          this.renameTabId = null;
+        } else {
+          const errData = await r.json().catch(() => ({}));
+          this._toast(errData.error || 'Failed to rename folder', 'error');
+        }
+      } catch (e) {
+        this._toast('Network error renaming folder', 'error');
+      } finally {
+        this.isRenaming = false;
       }
     },
 

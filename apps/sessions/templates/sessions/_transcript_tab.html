@@ -18,8 +18,9 @@
     <div x-show="suggestion" x-collapse class="mt-2 text-xs font-semibold px-2" style="color: var(--echo-muted);">
       Did you mean <button @click="searchQuery = suggestion; performSearch()" class="hover:underline cursor-pointer" style="color: var(--echo-accent);" x-text="`'${suggestion}'`"></button>?
     </div>
-    <div x-show="noResults" x-collapse class="mt-2 text-xs font-semibold px-2" style="color: var(--echo-error);">
-      No matches. Try a different word or phrase.
+    <div x-show="noResults" x-collapse class="mt-2 text-xs font-semibold px-2 flex items-center justify-between" style="color: var(--echo-error);">
+      <span>No matches found. Try a different word or phrase.</span>
+      <button @click="searchQuery = ''; performSearch()" class="text-xs font-bold underline hover:opacity-80 ml-2" style="color: var(--echo-accent);">Clear search</button>
     </div>
   </div>
 
@@ -46,8 +47,16 @@
           {% endspaceless %}
         </p>
       </div>
-    {% else %}
+    {% elif session.transcript.raw_text %}
       <p class="whitespace-pre-wrap font-sans font-medium" style="color: var(--echo-muted);">{{ session.transcript.raw_text }}</p>
+    {% else %}
+      <div class="flex flex-col items-center justify-center py-16 text-center gap-3">
+        <div class="w-14 h-14 rounded-full flex items-center justify-center bg-violet-500/10 text-[color:var(--echo-accent)]">
+          <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+        </div>
+        <h4 class="font-bold text-base" style="color: var(--echo-deep);">No transcript available</h4>
+        <p class="text-xs max-w-sm" style="color: var(--echo-muted);">No spoken words were captured for this recording, or transcription is still in progress.</p>
+      </div>
     {% endif %}
   </div>
 
